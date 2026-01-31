@@ -109,7 +109,7 @@ button:hover {
 }
 
 .banner h1 {
-  padding: .5em;
+  padding: 0.2em 0;
   letter-spacing: 5px;
 }
 
@@ -199,7 +199,7 @@ button:hover {
 }
 
 .topimage {
-  width: 190px;
+  width: 330px;
   display: initial !important;
 }
 
