@@ -1,6 +1,7 @@
 # this should only contain functions and assignments, ie source install.sh should not have side effects.
 
 get_tf_whl () {
+  # TODO: Create a release with TFLite binaries and update URL to https://github.com/cpieper/BirdNET-Pibird/releases/download/v0.1/
   BASE_URL=https://github.com/Nachtzuster/BirdNET-Pi/releases/download/v0.1/
 
   ARCH=$(uname -m)

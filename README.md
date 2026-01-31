@@ -49,15 +49,7 @@ This is my personal fork of [BirdNET-Pi](https://github.com/Nachtzuster/BirdNET-
 ## Quick Start
 
 ```bash
-curl -s https://raw.githubusercontent.com/Nachtzuster/BirdNET-Pi/main/newinstaller.sh | bash
-```
-
-Then point it at this fork:
-
-```bash
-git remote set-url origin https://github.com/cpieper/BirdNET-Pibird.git
-git fetch origin && git reset --hard origin/main
-./scripts/update_birdnet.sh
+curl -s https://raw.githubusercontent.com/cpieper/BirdNET-Pibird/main/newinstaller.sh | bash
 ```
 
 **Requirements:** Raspberry Pi (5/4B/400/3B+/0W2) • 64-bit RaspiOS • USB microphone
@@ -81,11 +73,10 @@ This project wouldn't exist without:
 
 ## Learn More
 
-📚 **Full documentation, troubleshooting, and community discussions live upstream:**
+📚 **Full documentation, troubleshooting, and community discussions:**
 
-- [Installation Guide](https://github.com/mcguirepr89/BirdNET-Pi/wiki/Installation-Guide)
-- [Wiki](https://github.com/mcguirepr89/BirdNET-Pi/wiki)
-- [Discussions](https://github.com/mcguirepr89/BirdNET-Pi/discussions)
+- [Wiki](https://github.com/cpieper/BirdNET-Pibird/wiki)
+- [Discussions](https://github.com/cpieper/BirdNET-Pibird/discussions)
 - [BirdWeather](https://app.birdweather.com) — share your birds with the world
 
 ---
