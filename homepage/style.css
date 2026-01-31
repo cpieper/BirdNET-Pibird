@@ -132,8 +132,8 @@ button:hover {
 
 .banner {
   position: relative;
-  min-height: 56px;
-  max-height: 90px;
+  min-height: 80px;
+  max-height: 140px;
   height: auto;
   text-align: center;
   display: flex;
@@ -152,7 +152,7 @@ button:hover {
 }
 
 .banner h1 img.topimage {
-  max-height: 56px;
+  max-height: 112px;
   width: auto;
   object-fit: contain;
 }
