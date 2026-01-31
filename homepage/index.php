@@ -19,11 +19,14 @@ set_timezone();
 ?>
 <!DOCTYPE html>
 <html lang="en">
+<head>
+<meta charset="UTF-8">
 <title><?php echo $site_name; ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link id="iconLink" rel="shortcut icon" sizes=85x85 href="images/bird.png" />
+<link id="iconLink" rel="shortcut icon" sizes="85x85" href="images/bird.png" />
 <link rel="stylesheet" href="<?php echo $color_scheme . '?v=' . date('n.d.y', filemtime($color_scheme)); ?>">
 <link rel="stylesheet" type="text/css" href="static/dialog-polyfill.css" />
+</head>
 <body>
 <header class="banner">
   <div class="logo">
@@ -53,11 +56,13 @@ if(isset($_GET['stream'])){
   </div>
 </header>
 <div class="centered site-title"><h3><?php echo $site_name; ?></h3></div>
+<?php
 if(isset($_GET['filename'])) {
   $filename = $_GET['filename'];
-echo "
-<iframe src=\"views.php?view=Recordings&filename=$filename\"></iframe>";
+  echo "<iframe src=\"views.php?view=Recordings&filename=$filename\"></iframe>";
 } else {
-  echo "
-<iframe src=\"views.php\"></iframe>";
+  echo "<iframe src=\"views.php\"></iframe>";
 }
+?>
+</body>
+</html>
