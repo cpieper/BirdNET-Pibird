@@ -108,21 +108,14 @@ button:hover {
 }
 
 .banner {
-  height: 70px;
+  height: 7%;
   text-align: center;
   background-color: #2b2b2b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .banner h1 {
-  padding: 0.25em;
+  padding: .5em;
   letter-spacing: 5px;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .banner audio,.banner form {
@@ -212,10 +205,8 @@ button:hover {
 }
 
 .topimage {
-  height: 60px;
-  max-height: 60px;
-  width: auto;
-  display: inline-block !important;
+  width: 190px;
+  display: initial !important;
   margin-left: 60px;
   filter: drop-shadow(0px 0px 20px rgba(255, 255, 255, 1.0));
 }
