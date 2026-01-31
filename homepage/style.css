@@ -131,28 +131,43 @@ button:hover {
 }
 
 .banner {
-  height: 7%;
+  position: relative;
+  min-height: 56px;
+  max-height: 90px;
+  height: auto;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 8px 0;
 }
 
 .banner h1 {
-  padding: .5em;
+  padding: 0.25em 0.5em;
   letter-spacing: 5px;
-  height: 100%;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.banner audio,.banner form {
-  float: right;
+.banner h1 img.topimage {
+  max-height: 56px;
+  width: auto;
+  object-fit: contain;
+}
+
+.banner .stream {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 120px;
-  margin-left: -120px;
-  margin-right: auto;
+}
+
+.banner audio,.banner form {
+  margin: 0;
+  width: 100%;
 }
 
 .banner button {
