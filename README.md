@@ -1,22 +1,21 @@
-<h1 align="center"><a href="https://github.com/mcguirepr89/BirdNET-Pi/blob/main/LICENSE">Review the license!!</a></h1>
-<h1 align="center">You may not use BirdNET-Pi to develop a commercial product!!!!</h1>
-<h1 align="center">
-  BirdNET-Pi
-</h1>
+# BirdNET-Pi
+
+A realtime acoustic bird classification system for the Raspberry Pi 5, 4B, 400, 3B+, and 0W2.
+
 <p align="center">
-A realtime acoustic bird classification system for the Raspberry Pi 5, 4B, 400, 3B+, and 0W2
+  <img src="https://user-images.githubusercontent.com/60325264/140656397-bf76bad4-f110-467c-897d-992ff0f96476.png" alt="BirdNET-Pi" />
 </p>
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/60325264/140656397-bf76bad4-f110-467c-897d-992ff0f96476.png" />
-</p>
-<p align="center">
-Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
+  Icon by <a href="https://www.freepik.com" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
 </p>
 
-## About this fork:
-I've been building on [mcguirepr89's](https://github.com/mcguirepr89/BirdNET-Pi) most excellent work to further update and improve BirdNET-Pi. Maybe someone will find it useful.
+## About this fork
 
-Changes include:
+This is a fork of [Nachtzuster/BirdNET-Pi](https://github.com/Nachtzuster/BirdNET-Pi), which in turn builds on [mcguirepr89/BirdNET-Pi](https://github.com/mcguirepr89/BirdNET-Pi). The same license and usage terms as the upstream repository apply.
+
+**Live instance:** A BirdNET-Pi instance is hosted at **[durm.pibirds.org](https://durm.pibirds.org)** (Durham, NC area).
+
+Changes in this fork include:
 
  - Backup & Restore
  - Web ui is much more responsive
@@ -31,7 +30,7 @@ Changes include:
  - Rework daily_plot.py (chart_viewer) to run as a daemon to avoid the very expensive startup
  - Lots of fixes & cleanups
 
-!! note: see 'Migrating' on how to migrate from mcguirepr89
+See the **Migrating** section below if you're coming from another BirdNET-Pi fork.
 
 ## Introduction
 BirdNET-Pi is built on the [BirdNET framework](https://github.com/kahst/BirdNET-Analyzer) by [**@kahst**](https://github.com/kahst) <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/"><img src="https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg"></a> using [pre-built TFLite binaries](https://github.com/PINTO0309/TensorflowLite-bin) by [**@PINTO0309**](https://github.com/PINTO0309) . It is able to recognize bird sounds from a USB microphone or sound card in realtime and share its data with the rest of the world.
@@ -129,20 +128,23 @@ cpu-model: BirdNet
 /usr/local/bin/uninstall.sh && cd ~ && rm -drf BirdNET-Pi
 ```
 ## Migrating
-Before switching, make sure your installation is fully up-to-date. Also make sure to have a backup, that is also the only way to get back to the original BirdNET-Pi.
-Please note that upgrading your underlying OS to Bookworm is not going to work. Please stick to Bullseye. If you do want Bookworm, you need to start from a fresh install and copy back your data. (remember the backup!)
 
-Run these commands to migrate to this repo:
+Before switching remotes, ensure your installation is up to date and you have a backup. Upgrading the underlying OS (e.g. to Bookworm) may require a fresh install and data restore.
+
+To point an existing BirdNET-Pi install at this fork:
 ```
 git remote remove origin
-git remote add origin https://github.com/Nachtzuster/BirdNET-Pi.git
+git remote add origin https://github.com/cpieper/BirdNET-Pibird.git
+git fetch origin
+git branch -M main
+git reset --hard origin/main
 ./scripts/update_birdnet.sh
 ```
 ## Troubleshooting and Ideas
 *Hint: A lot of weird problems can be solved by simply restarting the core services. Do this from the web interface "Tools" > "Services" > "Restart Core Services"
 Having trouble or have an idea? *Submit an issue for trouble* and a *discussion for ideas*. Please do *not* submit an issue as a discussion -- the issue tracker solicits information that is needed for anyone to help -- discussions are *not for issues*.
 
-PLEASE search the repo for your issue before creating a new one. This repo has nothing to do with the validity of the detection results, so please do not start any issues around "False positives."
+Search the repo for your issue before opening a new one. This repo does not address the validity of detection results (e.g. false positives).
 
 ## Sharing
 Please join a Discussion!! and please join [BirdWeather!!](https://app.birdweather.com)
