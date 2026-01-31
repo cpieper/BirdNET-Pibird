@@ -9,7 +9,7 @@
 Real-time acoustic bird classification running on a Raspberry Pi 3B+, listening to the birds of Durham, North Carolina.
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/60325264/140656397-bf76bad4-f110-467c-897d-992ff0f96476.png" alt="BirdNET-Pi" width="200"/>
+  <img src="homepage/images/bird.png" alt="Pibird Logo" width="300"/>
 </p>
 
 ---
@@ -89,10 +89,6 @@ This project wouldn't exist without:
 - [BirdWeather](https://app.birdweather.com) — share your birds with the world
 
 ---
-
-<p align="center">
-  <sub>Icon by <a href="https://www.freepik.com">Freepik</a> from <a href="https://www.flaticon.com/">Flaticon</a></sub>
-</p>
 
 <p align="center">
   <i>Currently listening in Durham, NC...</i> 🎤🐦

@@ -31,7 +31,7 @@ set_timezone();
 <header class="banner">
   <div class="logo">
     <a href="https://github.com/cpieper/BirdNET-Pibird" target="_blank" rel="noopener" title="View on GitHub">
-      <img src="images/bnp.png" alt="PiBird Logo">
+      <img src="images/bird.png" alt="Pibird Logo">
     </a>
   </div>
 
