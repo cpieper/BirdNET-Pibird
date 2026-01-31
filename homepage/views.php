@@ -60,18 +60,54 @@ elseif ($config["LONGITUDE"] == "0.000") {
 <body>
 <form action="views.php" method="GET" id="views">
 <div class="topnav" id="myTopnav">
-  <button type="submit" name="view" value="Overview" form="views">Overview</button>
-  <button type="submit" name="view" value="Todays Detections" form="views">Today's Detections</button>
-  <button type="submit" name="view" value="Spectrogram" form="views">Spectrogram</button>
-  <button type="submit" name="view" value="Species Stats" form="views">Best Recordings</button>
-  <button type="submit" name="view" value="Streamlit" form="views">Species Stats</button>
-  <button type="submit" name="view" value="Daily Charts" form="views">Daily Charts</button>
-  <button type="submit" name="view" value="Weekly Report" form="views">Weekly Report</button>
-  <button type="submit" name="view" value="Recordings" form="views">Recordings</button>
-  <button type="submit" name="view" value="View Log" form="views">View Log</button>
-  <button type="submit" name="view" value="Tools" form="views">Tools<?php if(isset($_SESSION['behind']) && intval($_SESSION['behind']) >= 50 && ($config['SILENCE_UPDATE_INDICATOR'] != 1)){ $updatediv = ' <div class="updatenumber">'.$_SESSION["behind"].'</div>'; } else { $updatediv = ""; } echo $updatediv; ?></button>
-  <button type="button" href="javascript:void(0);" class="icon" onclick="myFunction()"><img src="images/menu.png"></button>
+  <!-- Primary Navigation -->
+  <button type="submit" name="view" value="Overview" form="views" class="nav-primary">Overview</button>
+  <button type="submit" name="view" value="Todays Detections" form="views" class="nav-primary">Today</button>
+  <button type="submit" name="view" value="Recordings" form="views" class="nav-primary">Recordings</button>
+  
+  <!-- Stats & Charts Group -->
+  <button type="submit" name="view" value="Streamlit" form="views" class="nav-secondary">Species Stats</button>
+  <button type="submit" name="view" value="Species Stats" form="views" class="nav-secondary">Best Recordings</button>
+  <button type="submit" name="view" value="Daily Charts" form="views" class="nav-secondary">Charts</button>
+  <button type="submit" name="view" value="Weekly Report" form="views" class="nav-secondary">Reports</button>
+  
+  <!-- Utility -->
+  <button type="submit" name="view" value="Spectrogram" form="views" class="nav-utility">Live</button>
+  <button type="submit" name="view" value="View Log" form="views" class="nav-utility">Log</button>
+  <button type="submit" name="view" value="Tools" form="views" class="nav-utility">Tools<?php if(isset($_SESSION['behind']) && intval($_SESSION['behind']) >= 50 && ($config['SILENCE_UPDATE_INDICATOR'] != 1)){ $updatediv = ' <div class="updatenumber">'.$_SESSION["behind"].'</div>'; } else { $updatediv = ""; } echo $updatediv; ?></button>
+  
+  <!-- Mobile Menu Toggle -->
+  <button type="button" class="icon" onclick="myFunction()" aria-label="Toggle navigation menu">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
 </div>
+<!-- Mobile Bottom Navigation -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+  <button type="submit" name="view" value="Overview" form="views" class="bottom-nav-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+    <span>Home</span>
+  </button>
+  <button type="submit" name="view" value="Todays Detections" form="views" class="bottom-nav-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+    <span>Today</span>
+  </button>
+  <button type="submit" name="view" value="Recordings" form="views" class="bottom-nav-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+    <span>Recordings</span>
+  </button>
+  <button type="submit" name="view" value="Streamlit" form="views" class="bottom-nav-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+    <span>Stats</span>
+  </button>
+  <button type="button" class="bottom-nav-item" onclick="myFunction()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+    <span>More</span>
+  </button>
+</nav>
 </form>
 <script type="text/javascript" src="static/plupload.full.min.js"></script>
 <!--<script type="text/javascript" src="static/moxie.js"></script>
@@ -352,9 +388,34 @@ function myFunction() {
   var x = document.getElementById("myTopnav");
   if (x.className === "topnav") {
     x.className += " responsive";
+    document.body.style.overflow = "hidden";
   } else {
     x.className = "topnav";
+    document.body.style.overflow = "";
   }
+}
+
+// Mark active bottom nav item based on current view
+function updateActiveBottomNav() {
+  var bottomNavItems = document.querySelectorAll(".bottom-nav-item[name='view']");
+  var currentView = new URLSearchParams(window.location.search).get('view') || 'Overview';
+  
+  bottomNavItems.forEach(function(item) {
+    if (item.value === currentView || 
+        (currentView === 'Overview' && item.value === 'Overview') ||
+        (currentView === 'Todays Detections' && item.value === 'Todays Detections')) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+}
+
+// Run on load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', updateActiveBottomNav);
+} else {
+  updateActiveBottomNav();
 }
 function setLiveStreamVolume(vol) {
   var audioElements = document.querySelectorAll(".custom-audio-player audio");
