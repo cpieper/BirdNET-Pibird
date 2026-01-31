@@ -803,12 +803,16 @@ button:hover {
   }
   .banner {
     height: auto;
-    min-height: 60px;
-    padding: 8px 12px;
+    min-height: 50px;
+    padding: 4px 8px;
     margin-left: 0;
   }
   .banner h1 {
-    display: none;
+    flex: 1;
+    padding: 0;
+  }
+  .banner h1 img.topimage {
+    max-height: 45px;
   }
   .stream {
     position: static;
@@ -816,10 +820,16 @@ button:hover {
     width: auto;
     flex-shrink: 0;
   }
+  .stream button,
+  .banner button {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    min-height: 36px;
+  }
   .logo img {
     display: block;
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     position: static;
     padding: 0;
     filter: drop-shadow(0px 0px 10px rgba(255, 255, 255, 0.5));
@@ -847,8 +857,8 @@ button:hover {
     display: none;
   }
   iframe {
-    height: calc(100% - 140px);
-    height: calc(100% - 140px - env(safe-area-inset-bottom, 0px));
+    height: calc(100% - 120px);
+    height: calc(100% - 120px - env(safe-area-inset-bottom, 0px));
   }
   
   /* Improve table readability on mobile */
@@ -866,6 +876,37 @@ button:hover {
     display: block;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Center detection tables on mobile */
+  #detections_table,
+  #most_recent_detection,
+  .new_species,
+  .rare_species {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  #detections_table table,
+  #most_recent_detection table,
+  .new_species table,
+  .rare_species table {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 100%;
+  }
+  
+  /* Reduce vertical spacing on mobile */
+  h3 {
+    margin-top: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .overview h3,
+  .viewdb h3 {
+    margin-top: 8px;
+    margin-bottom: 6px;
   }
 }
 
