@@ -785,11 +785,6 @@ button:hover {
     position: static;
     padding: 0;
   }
-  .play table,.overview table,.stats table {
-    width: 100%;
-    display: block;
-    overflow-x: auto;
-  }
   
   /* Mobile: Hide top nav, show bottom nav */
   .topnav {
@@ -823,21 +818,15 @@ button:hover {
     font-size: 0.9rem;
   }
   
-  /* Responsive table as cards for detection tables */
-  .overview table tr {
-    display: flex;
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--bg-nav);
-    padding: 8px 0;
-  }
-  .overview table td {
-    flex: 1 1 100%;
-    text-align: left;
-    padding: 4px 8px;
-    background: transparent;
-  }
-  .overview table td:first-child {
-    flex: 0 0 60px;
+  /* Wrap large tables in scrollable container */
+  .play > table,
+  .stats > table,
+  .new_species table,
+  .rare_species table,
+  #detections_table table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
