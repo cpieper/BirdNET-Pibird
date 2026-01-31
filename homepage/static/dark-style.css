@@ -187,15 +187,15 @@ button:hover {
   flex-shrink: 0;
   width: auto;
   min-width: 100px;
-  max-width: 150px;
+  max-width: 220px;
   position: static;
   transform: none;
 }
 
 .banner audio {
   margin: 0;
-  width: 100%;
-  max-width: 200px;
+  width: 200px;
+  max-width: 100%;
   height: 40px;
 }
 
@@ -818,13 +818,19 @@ button:hover {
     position: static;
     transform: none;
     width: auto;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
   }
   .stream button,
   .banner button {
     padding: 8px 12px;
     font-size: 0.85rem;
     min-height: 36px;
+  }
+  .banner audio {
+    width: 140px;
+    max-width: calc(100vw - 180px);
+    height: 36px;
   }
   .logo img {
     display: block;
@@ -1133,6 +1139,15 @@ form#views button .updatenumber {
 @media screen and (max-width: 500px) {
   #recent_detection_middle_td {
     width: 66%;
+  }
+  
+  /* On very small screens, hide PiBird logo to make room for audio player */
+  .banner h1 {
+    display: none;
+  }
+  .banner audio {
+    width: 150px;
+    max-width: calc(100vw - 120px);
   }
   
   /* Extra small screens */
