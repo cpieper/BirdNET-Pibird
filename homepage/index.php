@@ -30,14 +30,14 @@ set_timezone();
 <body>
 <header class="banner">
   <div class="logo">
-    <a href="https://github.com/Nachtzuster/BirdNET-Pi.git" target="_blank" rel="noopener" title="View on GitHub">
-      <img src="images/bird.png" alt="BirdNET-Pi Logo" width="60" height="60">
+    <a href="https://github.com/cpieper/BirdNET-Pibird" target="_blank" rel="noopener" title="View on GitHub">
+      <img src="images/bnp.png" alt="PiBird Logo">
     </a>
   </div>
 
   <h1>
     <a href="/" title="<?php echo $site_name; ?>">
-      <img class="topimage" src="images/bnp.png" alt="BirdNET-Pi">
+      <img class="topimage" src="images/bnp.png" alt="PiBird">
     </a>
   </h1>
 
