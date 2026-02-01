@@ -55,7 +55,6 @@ if(isset($_GET['stream'])){
 ?>
   </div>
 </header>
-<div class="centered site-title"><h3><?php echo $site_name; ?></h3></div>
 <?php
 if(isset($_GET['filename'])) {
   $filename = $_GET['filename'];
