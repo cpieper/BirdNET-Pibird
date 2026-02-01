@@ -56,8 +56,7 @@ iframe {
   width: 100%;
   position: fixed;
   top: 150px;
-  bottom: 0;
-  height: auto;
+  height: calc(100vh - 150px);
   background-color: var(--bg-card);
 }
 
@@ -866,7 +865,7 @@ button:hover {
   }
   iframe {
     top: 120px;
-    bottom: env(safe-area-inset-bottom, 0px);
+    height: calc(100vh - 120px - env(safe-area-inset-bottom, 0px));
   }
   
   /* Improve table readability on mobile */
