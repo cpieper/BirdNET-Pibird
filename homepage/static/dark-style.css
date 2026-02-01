@@ -53,9 +53,11 @@ h3 {
 
 iframe {
   border: none;
-  height: 90%;
   width: 100%;
   position: fixed;
+  top: 150px;
+  bottom: 0;
+  height: auto;
   background-color: var(--bg-card);
 }
 
@@ -863,8 +865,8 @@ button:hover {
     display: none;
   }
   iframe {
-    height: calc(100% - 120px);
-    height: calc(100% - 120px - env(safe-area-inset-bottom, 0px));
+    top: 120px;
+    bottom: env(safe-area-inset-bottom, 0px);
   }
   
   /* Improve table readability on mobile */
