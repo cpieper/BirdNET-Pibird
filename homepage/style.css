@@ -55,11 +55,15 @@ iframe {
   position: fixed;
   top: 150px;
   height: calc(100vh - 150px);
+  height: calc(100dvh - 150px);
 }
 
 body {
   margin: 0;
   background-color: var(--bg-body);
+  /* Use dvh for Safari iOS compatibility - falls back to vh for older browsers */
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 table {
@@ -371,6 +375,9 @@ button:hover {
   z-index: 1000;
   justify-content: space-around;
   align-items: center;
+  /* Ensure visibility on Safari iOS by using transform hack */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .bottom-nav-item {
@@ -473,6 +480,13 @@ button:hover {
 .views {
   transition: opacity 0.3s;
   -webkit-transition: opacity 0.3s;
+}
+
+/* On mobile, add bottom padding to prevent content from being hidden behind bottom nav */
+@media screen and (max-width: 800px) {
+  .views {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .views .centered button {
@@ -826,7 +840,9 @@ button:hover {
   }
   iframe {
     top: 120px;
-    height: calc(100vh - 120px - env(safe-area-inset-bottom, 0px));
+    /* Use dvh for Safari iOS - accounts for dynamic browser UI */
+    height: calc(100vh - 120px - 72px - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 120px - 72px - env(safe-area-inset-bottom, 0px));
   }
   
   /* Improve table readability on mobile */
