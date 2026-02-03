@@ -1,0 +1,184 @@
+<script lang="ts">
+	import { page } from '$app/stores';
+	import { theme, isMobileMenuOpen, auth } from '$lib/stores';
+	import ThemeToggle from './ThemeToggle.svelte';
+
+	const navItems = [
+		{ href: '/', label: 'Overview', icon: 'home' },
+		{ href: '/detections', label: 'Detections', icon: 'list' },
+		{ href: '/recordings', label: 'Recordings', icon: 'mic' },
+		{ href: '/history', label: 'History', icon: 'calendar' },
+		{ href: '/species', label: 'Species', icon: 'bird' },
+	];
+
+	const settingsItems = [
+		{ href: '/settings', label: 'Settings', icon: 'settings' },
+		{ href: '/settings/system', label: 'System', icon: 'server' },
+	];
+
+	function toggleMobileMenu() {
+		isMobileMenuOpen.update((open) => !open);
+	}
+
+	function closeMobileMenu() {
+		isMobileMenuOpen.set(false);
+	}
+
+	$: currentPath = $page.url.pathname;
+</script>
+
+<!-- Desktop Navigation -->
+<nav class="hidden md:flex fixed top-0 left-0 right-0 h-16 bg-primary-600 dark:bg-dark-nav shadow-lg z-30">
+	<div class="container mx-auto px-4 flex items-center justify-between">
+		<!-- Logo -->
+		<a href="/" class="flex items-center gap-3 text-white">
+			<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+				<path d="M12 2C7.58 2 4 5.58 4 10c0 3.31 2.69 6 6 6h1v4l3-3 3 3v-4h1c3.31 0 6-2.69 6-6 0-4.42-3.58-8-8-8zm-2 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm4 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
+			</svg>
+			<span class="text-xl font-bold">BirdNET-Pi</span>
+		</a>
+
+		<!-- Navigation Links -->
+		<div class="flex items-center gap-1">
+			{#each navItems as item}
+				<a
+					href={item.href}
+					class="px-4 py-2 rounded-lg text-white/90 hover:text-white hover:bg-white/10 transition-colors"
+					class:bg-white/20={currentPath === item.href}
+					class:text-white={currentPath === item.href}
+				>
+					{item.label}
+				</a>
+			{/each}
+
+			<!-- Settings Dropdown -->
+			<div class="relative group">
+				<button class="px-4 py-2 rounded-lg text-white/90 hover:text-white hover:bg-white/10 transition-colors">
+					Settings
+				</button>
+				<div class="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-dark-card rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+					{#each settingsItems as item}
+						<a
+							href={item.href}
+							class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-hover first:rounded-t-lg last:rounded-b-lg"
+						>
+							{item.label}
+						</a>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Theme Toggle -->
+			<ThemeToggle />
+		</div>
+	</div>
+</nav>
+
+<!-- Mobile Navigation -->
+<nav class="md:hidden fixed top-0 left-0 right-0 h-14 bg-primary-600 dark:bg-dark-nav shadow-lg z-30">
+	<div class="h-full px-4 flex items-center justify-between">
+		<a href="/" class="flex items-center gap-2 text-white">
+			<svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+				<path d="M12 2C7.58 2 4 5.58 4 10c0 3.31 2.69 6 6 6h1v4l3-3 3 3v-4h1c3.31 0 6-2.69 6-6 0-4.42-3.58-8-8-8zm-2 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm4 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
+			</svg>
+			<span class="text-lg font-bold">BirdNET-Pi</span>
+		</a>
+
+		<div class="flex items-center gap-2">
+			<ThemeToggle />
+			<button
+				on:click={toggleMobileMenu}
+				class="p-2 text-white hover:bg-white/10 rounded-lg"
+				aria-label="Toggle menu"
+			>
+				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					{#if $isMobileMenuOpen}
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					{:else}
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+					{/if}
+				</svg>
+			</button>
+		</div>
+	</div>
+</nav>
+
+<!-- Mobile Menu Overlay -->
+{#if $isMobileMenuOpen}
+	<div
+		class="md:hidden fixed inset-0 bg-black/50 z-40"
+		on:click={closeMobileMenu}
+		on:keydown={(e) => e.key === 'Escape' && closeMobileMenu()}
+		role="button"
+		tabindex="0"
+	/>
+
+	<div class="md:hidden fixed top-14 left-0 right-0 bottom-0 bg-white dark:bg-dark-body z-40 overflow-y-auto">
+		<div class="p-4 space-y-2">
+			{#each navItems as item}
+				<a
+					href={item.href}
+					on:click={closeMobileMenu}
+					class="block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card"
+					class:bg-primary-100={currentPath === item.href}
+					class:dark:bg-primary-900={currentPath === item.href}
+					class:text-primary-800={currentPath === item.href}
+					class:dark:text-primary-200={currentPath === item.href}
+				>
+					{item.label}
+				</a>
+			{/each}
+
+			<div class="border-t border-gray-200 dark:border-dark-border my-4" />
+
+			{#each settingsItems as item}
+				<a
+					href={item.href}
+					on:click={closeMobileMenu}
+					class="block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card"
+					class:bg-primary-100={currentPath === item.href}
+					class:dark:bg-primary-900={currentPath === item.href}
+				>
+					{item.label}
+				</a>
+			{/each}
+		</div>
+	</div>
+{/if}
+
+<!-- Mobile Bottom Navigation -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-dark-nav border-t border-gray-200 dark:border-dark-border z-30">
+	<div class="h-full grid grid-cols-5">
+		{#each navItems as item}
+			<a
+				href={item.href}
+				class="flex flex-col items-center justify-center text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+				class:text-primary-600={currentPath === item.href}
+				class:dark:text-primary-400={currentPath === item.href}
+			>
+				{#if item.icon === 'home'}
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+					</svg>
+				{:else if item.icon === 'list'}
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+					</svg>
+				{:else if item.icon === 'mic'}
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+					</svg>
+				{:else if item.icon === 'calendar'}
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+					</svg>
+				{:else if item.icon === 'bird'}
+					<svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+						<path d="M12 2C7.58 2 4 5.58 4 10c0 3.31 2.69 6 6 6h1v4l3-3 3 3v-4h1c3.31 0 6-2.69 6-6 0-4.42-3.58-8-8-8zm-2 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm4 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
+					</svg>
+				{/if}
+				<span class="text-xs mt-1">{item.label}</span>
+			</a>
+		{/each}
+	</div>
+</nav>

@@ -17,10 +17,19 @@ install_depends() {
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
   apt -qqq update && apt -qqy upgrade
   echo "icecast2 icecast2/icecast-setup boolean false" | debconf-set-selections
-  apt install --no-install-recommends -qqy caddy sqlite3 php-sqlite3 php-fpm php-curl php-xml php-zip php icecast2 \
-    pulseaudio avahi-utils sox libsox-fmt-mp3 alsa-utils ffmpeg \
-    wget curl unzip bc \
-    python3-pip python3-venv lsof net-tools inotify-tools
+  
+  # Core packages (always needed)
+  CORE_PACKAGES="caddy sqlite3 icecast2 pulseaudio avahi-utils sox libsox-fmt-mp3 alsa-utils ffmpeg wget curl unzip bc python3-pip python3-venv lsof net-tools inotify-tools"
+  
+  # PHP packages (only if not using new web interface)
+  if [ -z "${SKIP_PHP}" ]; then
+    PHP_PACKAGES="php-sqlite3 php-fpm php-curl php-xml php-zip php"
+  else
+    PHP_PACKAGES=""
+    echo "Skipping PHP installation (new web interface will be used)"
+  fi
+  
+  apt install --no-install-recommends -qqy $CORE_PACKAGES $PHP_PACKAGES
 }
 
 set_hostname() {
@@ -329,19 +338,29 @@ EOF
 }
 
 configure_caddy_php() {
-  echo "Configuring PHP for Caddy"
-  sed -i 's/www-data/caddy/g' /etc/php/*/fpm/pool.d/www.conf
-  systemctl restart php\*-fpm.service
   echo "Adding Caddy sudoers rule"
   cat << EOF > /etc/sudoers.d/010_caddy-nopasswd
 caddy ALL=(ALL) NOPASSWD: ALL
 EOF
   chmod 0440 /etc/sudoers.d/010_caddy-nopasswd
+  
+  # Only configure PHP if not skipped
+  if [ -z "${SKIP_PHP}" ]; then
+    echo "Configuring PHP for Caddy"
+    sed -i 's/www-data/caddy/g' /etc/php/*/fpm/pool.d/www.conf
+    systemctl restart php\*-fpm.service
+  else
+    echo "Skipping PHP configuration (new web interface will be used)"
+  fi
 }
 
 install_phpsysinfo() {
-  sudo -u ${USER} git clone https://github.com/phpsysinfo/phpsysinfo.git \
-    ${HOME}/phpsysinfo
+  if [ -z "${SKIP_PHP}" ]; then
+    sudo -u ${USER} git clone https://github.com/phpsysinfo/phpsysinfo.git \
+      ${HOME}/phpsysinfo
+  else
+    echo "Skipping phpsysinfo (new web interface will be used)"
+  fi
 }
 
 config_icecast() {
@@ -410,7 +429,18 @@ install_services() {
 
   install_depends
   install_scripts
-  install_Caddyfile
+  
+  # Only install PHP-based Caddyfile if not using new web interface
+  if [ -z "${SKIP_PHP}" ]; then
+    install_Caddyfile
+  else
+    # Just enable Caddy, install_web.sh will configure it
+    systemctl enable caddy
+    usermod -aG $USER caddy
+    usermod -aG video caddy
+    chmod g+r+x $HOME
+  fi
+  
   install_avahi_aliases
   install_birdnet_analysis
   install_birdnet_stats_service

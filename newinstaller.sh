@@ -46,11 +46,36 @@ fi
 branch=main
 git clone -b $branch --depth=1 https://github.com/cpieper/BirdNET-Pibird.git ${HOME}/BirdNET-Pi &&
 
+# Set SKIP_PHP to use new web interface instead of PHP
+export SKIP_PHP=1
+
+# Run base installation
 $HOME/BirdNET-Pi/scripts/install_birdnet.sh
+if [ ${PIPESTATUS[0]} -ne 0 ];then
+  echo "The base installation exited unsuccessfully."
+  exit 1
+fi
+
+# Install new web interface (FastAPI + SvelteKit)
+echo ""
+echo "=============================================="
+echo "Installing modern web interface..."
+echo "=============================================="
+echo ""
+
+$HOME/BirdNET-Pi/scripts/install_web.sh
 if [ ${PIPESTATUS[0]} -eq 0 ];then
-  echo "Installation completed successfully"
+  echo ""
+  echo "=============================================="
+  echo "Installation completed successfully!"
+  echo "=============================================="
+  echo ""
+  echo "The system will reboot in 10 seconds..."
+  echo "Press Ctrl+C to cancel reboot"
+  sleep 10
   sudo reboot
 else
-  echo "The installation exited unsuccessfully."
+  echo "The web interface installation exited unsuccessfully."
+  echo "You can try running it manually: ~/BirdNET-Pi/scripts/install_web.sh"
   exit 1
 fi

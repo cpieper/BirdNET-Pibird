@@ -1,0 +1,288 @@
+/**
+ * API client for BirdNET-Pi backend
+ */
+
+const API_BASE = '/api';
+
+interface RequestOptions {
+	method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+	body?: unknown;
+	auth?: { username: string; password: string };
+}
+
+class ApiError extends Error {
+	constructor(public status: number, message: string) {
+		super(message);
+		this.name = 'ApiError';
+	}
+}
+
+async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+	const { method = 'GET', body, auth } = options;
+
+	const headers: HeadersInit = {
+		'Content-Type': 'application/json',
+	};
+
+	if (auth) {
+		headers['Authorization'] = `Basic ${btoa(`${auth.username}:${auth.password}`)}`;
+	}
+
+	const response = await fetch(`${API_BASE}${endpoint}`, {
+		method,
+		headers,
+		body: body ? JSON.stringify(body) : undefined,
+	});
+
+	if (!response.ok) {
+		const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+		throw new ApiError(response.status, error.detail || response.statusText);
+	}
+
+	return response.json();
+}
+
+// Detection API
+export const detections = {
+	list: (params?: { limit?: number; offset?: number; date?: string; species?: string }) => {
+		const searchParams = new URLSearchParams();
+		if (params?.limit) searchParams.set('limit', String(params.limit));
+		if (params?.offset) searchParams.set('offset', String(params.offset));
+		if (params?.date) searchParams.set('date', params.date);
+		if (params?.species) searchParams.set('species', params.species);
+		const query = searchParams.toString();
+		return request<DetectionList>(`/detections${query ? `?${query}` : ''}`);
+	},
+
+	today: (params?: { limit?: number; search?: string }) => {
+		const searchParams = new URLSearchParams();
+		if (params?.limit) searchParams.set('limit', String(params.limit));
+		if (params?.search) searchParams.set('search', params.search);
+		const query = searchParams.toString();
+		return request<{ detections: Detection[]; date: string }>(`/detections/today${query ? `?${query}` : ''}`);
+	},
+
+	latest: () => request<Detection | null>('/detections/latest'),
+
+	stats: () => request<DetectionStats>('/detections/stats'),
+
+	dates: () => request<{ dates: string[] }>('/detections/dates'),
+
+	delete: (filename: string, auth: { username: string; password: string }) =>
+		request(`/detections/${encodeURIComponent(filename)}`, { method: 'DELETE', auth }),
+};
+
+// Species API
+export const species = {
+	list: (params?: { sort?: string; date?: string }) => {
+		const searchParams = new URLSearchParams();
+		if (params?.sort) searchParams.set('sort', params.sort);
+		if (params?.date) searchParams.set('date', params.date);
+		const query = searchParams.toString();
+		return request<SpeciesList>(`/species${query ? `?${query}` : ''}`);
+	},
+
+	detections: (sciName: string, params?: { limit?: number; offset?: number }) => {
+		const searchParams = new URLSearchParams();
+		if (params?.limit) searchParams.set('limit', String(params.limit));
+		if (params?.offset) searchParams.set('offset', String(params.offset));
+		const query = searchParams.toString();
+		return request(`/species/${encodeURIComponent(sciName)}/detections${query ? `?${query}` : ''}`);
+	},
+
+	chartData: (sciName: string, days = 7) =>
+		request<SpeciesChartData>(`/species/${encodeURIComponent(sciName)}/chart-data?days=${days}`),
+
+	stats: (sciName: string) => request(`/species/${encodeURIComponent(sciName)}/stats`),
+
+	delete: (sciName: string, auth: { username: string; password: string }) =>
+		request(`/species/${encodeURIComponent(sciName)}`, { method: 'DELETE', auth }),
+
+	getLists: (sciName: string) => request(`/species/${encodeURIComponent(sciName)}/lists`),
+};
+
+// Species lists API
+export const speciesLists = {
+	get: (listType: string) => request<{ list_type: string; species: string[] }>(`/species-lists/${listType}`),
+
+	update: (listType: string, species: string, action: 'add' | 'remove', auth: { username: string; password: string }) =>
+		request(`/species-lists/${listType}`, {
+			method: 'POST',
+			body: { species, action },
+			auth,
+		}),
+};
+
+// Media API
+export const media = {
+	audioUrl: (date: string, species: string, filename: string) =>
+		`${API_BASE}/media/audio/${date}/${encodeURIComponent(species)}/${encodeURIComponent(filename)}`,
+
+	spectrogramUrl: (date: string, species: string, filename: string) =>
+		`${API_BASE}/media/spectrogram/${date}/${encodeURIComponent(species)}/${encodeURIComponent(filename)}`,
+
+	chartUrl: (date: string) => `${API_BASE}/media/chart/${date}`,
+
+	dates: () => request<{ dates: string[] }>('/media/dates'),
+
+	speciesForDate: (date: string) => request<{ date: string; species: { name: string; count: number }[] }>(`/media/dates/${date}/species`),
+
+	filesForSpecies: (date: string, species: string) =>
+		request<{ date: string; species: string; files: { name: string; has_spectrogram: boolean; size: number }[] }>(
+			`/media/dates/${date}/${encodeURIComponent(species)}/files`
+		),
+};
+
+// Config API
+export const config = {
+	get: (auth: { username: string; password: string }) => request<Config>('/config', { auth }),
+
+	update: (data: Partial<Config>, auth: { username: string; password: string }) =>
+		request('/config', { method: 'PUT', body: data, auth }),
+
+	testNotification: (data: { title?: string; body?: string }, auth: { username: string; password: string }) =>
+		request<{ success: boolean; message: string }>('/config/test-notification', { method: 'POST', body: data, auth }),
+
+	models: () => request<{ models: { name: string; active: boolean }[]; current: string }>('/config/models'),
+
+	languages: () => request<{ languages: { code: string; active: boolean }[]; current: string }>('/config/languages'),
+};
+
+// System API
+export const system = {
+	info: () => request<SystemInfo>('/system/info'),
+
+	services: () => request<{ services: ServiceStatus[] }>('/system/services'),
+
+	controlService: (service: string, action: string, auth: { username: string; password: string }) =>
+		request(`/system/services/${service}/${action}`, { method: 'POST', auth }),
+
+	restartServices: (auth: { username: string; password: string }) =>
+		request('/system/restart-services', { method: 'POST', auth }),
+
+	reboot: (auth: { username: string; password: string }) =>
+		request('/system/reboot', { method: 'POST', auth }),
+
+	shutdown: (auth: { username: string; password: string }) =>
+		request('/system/shutdown', { method: 'POST', auth }),
+
+	logs: (service: string, lines: number, auth: { username: string; password: string }) =>
+		request<{ service: string; lines: number; logs: string }>(`/system/logs/${service}?lines=${lines}`, { auth }),
+
+	updateStatus: () => request<{ commits_behind: number; update_available: boolean; current_commit: string }>('/system/update-status'),
+};
+
+// Integrations API
+export const integrations = {
+	image: (sciName: string) => request<BirdImage>(`/image/${encodeURIComponent(sciName)}`),
+
+	blacklistImage: (sciName: string) =>
+		request(`/image/${encodeURIComponent(sciName)}/blacklist`, { method: 'POST' }),
+
+	birdweatherStatus: () => request<{ enabled: boolean; station_id: string | null; station_url: string | null }>('/birdweather/status'),
+
+	labels: () => request<{ language: string; count: number; labels: Record<string, string> }>('/labels'),
+
+	ebirdExport: (date: string, minConfidence = 0.75) =>
+		request<{ date: string; species_count: number; csv: string }>(`/ebird/export/${date}?min_confidence=${minConfidence}`),
+};
+
+// Health API
+export const health = {
+	check: () => request<{ status: string; site_name: string }>('/health'),
+	info: () => request<{ name: string; version: string; site_name: string; latitude: number; longitude: number; model: string }>('/info'),
+};
+
+// Types
+export interface Detection {
+	Date: string;
+	Time: string;
+	Sci_Name: string;
+	Com_Name: string;
+	Confidence: number;
+	Lat: number | null;
+	Lon: number | null;
+	Cutoff: number | null;
+	Week: number | null;
+	Sens: number | null;
+	Overlap: number | null;
+	File_Name: string;
+}
+
+export interface DetectionList {
+	detections: Detection[];
+	total: number;
+	limit: number;
+	offset: number;
+}
+
+export interface DetectionStats {
+	total_count: number;
+	todays_count: number;
+	hour_count: number;
+	todays_species_tally: number;
+	species_tally: number;
+}
+
+export interface SpeciesSummary {
+	Date: string;
+	Time: string;
+	File_Name: string;
+	Com_Name: string;
+	Sci_Name: string;
+	Count: number;
+	MaxConfidence: number;
+}
+
+export interface SpeciesList {
+	species: SpeciesSummary[];
+	total: number;
+}
+
+export interface SpeciesChartData {
+	species: string;
+	com_name: string;
+	days: number;
+	data: { date: string; count: number }[];
+}
+
+export interface Config {
+	site_name: string;
+	latitude: number;
+	longitude: number;
+	database_lang: string;
+	color_scheme: string;
+	model: string;
+	confidence: number;
+	sensitivity: number;
+	overlap: number;
+	birdweather_id: string;
+	image_provider: string;
+	has_flickr_key: boolean;
+}
+
+export interface ServiceStatus {
+	name: string;
+	active: boolean;
+	enabled: boolean;
+	status: string;
+}
+
+export interface SystemInfo {
+	version: string;
+	uptime: string | null;
+	disk_usage: { total: string; used: string; available: string; percent: string } | null;
+	services: ServiceStatus[];
+}
+
+export interface BirdImage {
+	url: string;
+	title: string | null;
+	author: string | null;
+	author_url: string | null;
+	license: string | null;
+	license_url: string | null;
+	source: string;
+}
+
+export { ApiError };
