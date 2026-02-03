@@ -93,6 +93,30 @@ curl -s https://raw.githubusercontent.com/cpieper/BirdNET-Pibird/main/newinstall
 
 This installs everything: BirdNET analysis pipeline, the new web interface, and all services.
 
+<details>
+<summary><b>Installing from a specific branch (for testing)</b></summary>
+
+To install from a feature or development branch:
+
+```bash
+# Replace BRANCH_NAME with the actual branch name
+curl -s https://raw.githubusercontent.com/cpieper/BirdNET-Pibird/BRANCH_NAME/newinstaller.sh | BRANCH=BRANCH_NAME bash
+```
+
+Example for the `fastapi-svelte-migration-mk1` branch:
+
+```bash
+curl -s https://raw.githubusercontent.com/cpieper/BirdNET-Pibird/fastapi-svelte-migration-mk1/newinstaller.sh | BRANCH=fastapi-svelte-migration-mk1 bash
+```
+
+You can also override the repository URL and install directory:
+
+```bash
+REPO_URL=https://github.com/yourfork/BirdNET-Pibird.git BRANCH=your-branch bash newinstaller.sh
+```
+
+</details>
+
 ### Migration from PHP-based BirdNET-Pi
 
 If you have an existing BirdNET-Pi installation with the PHP interface:
