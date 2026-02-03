@@ -1,4 +1,4 @@
-# BirdNET-Pibird 🐦
+# BirdNET-Pibird
 
 [![Listen Live](https://img.shields.io/badge/🎧_Listen_Live-durm.pibirds.org-4CAF50?style=for-the-badge)](https://durm.pibirds.org)
 [![Powered by](https://img.shields.io/badge/Powered_by-Raspberry_Pi_3B+-C51A4A?style=for-the-badge&logo=raspberrypi)](https://www.raspberrypi.com/)
@@ -16,49 +16,161 @@ Real-time acoustic bird classification running on a Raspberry Pi 3B+, listening 
 
 ## What's This?
 
-This is my personal fork of [BirdNET-Pi](https://github.com/Nachtzuster/BirdNET-Pi), optimized for **mobile-friendly viewing** and performance on older Pi hardware. A humble Raspberry Pi 3B+ sits in Durham, NC, constantly listening, identifying, and cataloguing every chirp, tweet, and warble it picks up.
+This is a modernized fork of [BirdNET-Pi](https://github.com/Nachtzuster/BirdNET-Pi), completely rebuilt with a **modern web stack** for better performance, maintainability, and user experience. The original PHP interface has been replaced with **FastAPI + SvelteKit + Tailwind CSS**.
 
 **Want to see what's singing right now?** → **[durm.pibirds.org](https://durm.pibirds.org)**
 
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        BirdNET-Pibird                           │
+├─────────────────────────────────────────────────────────────────┤
+│  Frontend (SvelteKit + Tailwind CSS)                            │
+│  • Modern, responsive UI with dark mode                         │
+│  • Real-time detection feed                                     │
+│  • Mobile-first design                                          │
+├─────────────────────────────────────────────────────────────────┤
+│  Backend (FastAPI + Python)                                     │
+│  • RESTful API for all operations                               │
+│  • Reuses existing BirdNET Python utilities                     │
+│  • SQLite database for detections                               │
+├─────────────────────────────────────────────────────────────────┤
+│  Analysis Pipeline (unchanged from upstream)                    │
+│  • BirdNET TensorFlow Lite model                                │
+│  • Audio recording & spectrogram generation                     │
+│  • BirdWeather integration                                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## What Makes This Fork Special
 
-| Feature | What it means for you |
-|---------|----------------------|
-| 📱 **Mobile-Friendly UI** | Check your birds from anywhere—the web interface actually works on phones |
-| 📊 **Full Species Charts** | Daily charts show *all* species, not just the top 10 |
-| 👆 **Swipe Navigation** | Swipe through daily charts on touch devices |
-| ⚡ **Faster Analysis** | Consolidated analysis pipeline + TFLite 2.17.1 = snappier detection |
-| 💾 **Backup & Restore** | Never lose your bird data again |
-| 🐧 **Bookworm + Trixie** | Modern Debian support |
+| Feature | Description |
+|---------|-------------|
+| **Modern Web Stack** | FastAPI backend + SvelteKit frontend replaces PHP |
+| **Tailwind CSS** | Single consolidated stylesheet with dark mode support |
+| **Mobile-First UI** | Responsive design that works great on phones |
+| **Type Safety** | TypeScript frontend + Pydantic backend schemas |
+| **Full Species Charts** | Daily charts show *all* species, not just the top 10 |
+| **Faster Analysis** | Consolidated analysis pipeline + TFLite 2.17.1 |
+| **Backup & Restore** | Never lose your bird data again |
+| **Modern Debian** | Bookworm + Trixie support |
 
 <details>
-<summary><b>Full changelog from upstream</b></summary>
+<summary><b>Changes from upstream BirdNET-Pi</b></summary>
 
-- Reworked analysis to consolidate analysis/server/extraction (more robust, especially with large recording sets)
+**New in this fork:**
+- Complete web interface rewrite (PHP → FastAPI + SvelteKit)
+- Tailwind CSS with unified light/dark theme
+- RESTful API for all operations
+- Improved mobile experience with bottom navigation
+
+**Inherited improvements:**
+- Reworked analysis to consolidate analysis/server/extraction
 - Daily plot daemon (`daily_plot.py`) avoids expensive startup overhead
 - Experimental tmpfs support for transient files  
 - Bumped Apprise version for 90+ notification platforms
 - Swipe events on Daily Charts (thanks [@croisez](https://github.com/croisez))
 - Support for Species range model V2.4 - V2
-- Lots of fixes & cleanups
 
 </details>
 
 ---
 
-## Quick Start
+## Installation
+
+### Fresh Install
+
+On a fresh Raspberry Pi with 64-bit RaspiOS:
 
 ```bash
 curl -s https://raw.githubusercontent.com/cpieper/BirdNET-Pibird/main/newinstaller.sh | bash
 ```
 
-**Requirements:** Raspberry Pi (5/4B/400/3B+/0W2) • 64-bit RaspiOS • USB microphone
+This installs everything: BirdNET analysis pipeline, the new web interface, and all services.
+
+### Migration from PHP-based BirdNET-Pi
+
+If you have an existing BirdNET-Pi installation with the PHP interface:
+
+```bash
+cd ~/BirdNET-Pi
+git pull
+./scripts/install_web.sh
+```
+
+The migration script will:
+- Install Node.js and build the new frontend
+- Install FastAPI backend dependencies
+- Disable PHP-FPM services
+- Reconfigure Caddy for the new architecture
+- Start the new web service
+
+Your detection data, configuration, and recordings are preserved.
+
+### Requirements
+
+- **Hardware:** Raspberry Pi 5/4B/400/3B+/Zero 2W
+- **OS:** 64-bit Raspberry Pi OS (Bookworm recommended)
+- **Microphone:** USB microphone or RTSP stream
+
+---
+
+## Development
+
+### Backend (FastAPI)
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8080
+```
+
+### Frontend (SvelteKit)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend dev server proxies API requests to `localhost:8080`.
+
+### Project Structure
+
+```
+BirdNET-Pibird/
+├── backend/                 # FastAPI application
+│   ├── app/
+│   │   ├── main.py         # Application entry point
+│   │   ├── config.py       # Configuration management
+│   │   ├── dependencies.py # Auth, database connections
+│   │   ├── routers/        # API endpoints
+│   │   └── models/         # Pydantic schemas
+│   └── requirements.txt
+├── frontend/                # SvelteKit application
+│   ├── src/
+│   │   ├── routes/         # Page components
+│   │   ├── lib/            # Shared code, components, stores
+│   │   └── app.css         # Tailwind entry point
+│   ├── tailwind.config.js
+│   └── package.json
+├── scripts/                 # Analysis & utility scripts (unchanged)
+│   ├── birdnet_analysis.py # Main analysis pipeline
+│   ├── utils/              # Python utilities (reused by backend)
+│   └── *.sh                # Shell scripts
+└── model/                   # BirdNET models & labels
+```
 
 ---
 
 ## Standing on the Shoulders of Giants
 
-This project wouldn't exist without:
+This project builds upon the incredible work of:
 
 | Project | Credit |
 |---------|--------|
@@ -73,11 +185,9 @@ This project wouldn't exist without:
 
 ## Learn More
 
-📚 **Full documentation, troubleshooting, and community discussions:**
-
-- [Wiki](https://github.com/cpieper/BirdNET-Pibird/wiki)
-- [Discussions](https://github.com/cpieper/BirdNET-Pibird/discussions)
-- [BirdWeather](https://app.birdweather.com) — share your birds with the world
+- [Wiki](https://github.com/cpieper/BirdNET-Pibird/wiki) — Full documentation & troubleshooting
+- [Discussions](https://github.com/cpieper/BirdNET-Pibird/discussions) — Community Q&A
+- [BirdWeather](https://app.birdweather.com) — Share your birds with the world
 
 ---
 
