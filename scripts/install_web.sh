@@ -75,7 +75,13 @@ build_frontend() {
     cd "$BIRDNET_DIR/frontend"
     
     # Install npm dependencies
-    npm ci --silent
+    # Use 'npm install' instead of 'npm ci' in case package-lock.json is missing
+    if [ -f "package-lock.json" ]; then
+        npm ci --silent
+    else
+        echo_info "No package-lock.json found, running npm install..."
+        npm install
+    fi
     
     # Build for production
     npm run build

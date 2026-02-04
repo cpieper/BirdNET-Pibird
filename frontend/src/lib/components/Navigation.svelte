@@ -43,9 +43,9 @@
 			{#each navItems as item}
 				<a
 					href={item.href}
-					class="px-4 py-2 rounded-lg text-white/90 hover:text-white hover:bg-white/10 transition-colors"
-					class:bg-white/20={currentPath === item.href}
-					class:text-white={currentPath === item.href}
+					class="px-4 py-2 rounded-lg transition-colors {currentPath === item.href
+						? 'bg-white/20 text-white'
+						: 'text-white/90 hover:text-white hover:bg-white/10'}"
 				>
 					{item.label}
 				</a>
@@ -119,11 +119,9 @@
 				<a
 					href={item.href}
 					on:click={closeMobileMenu}
-					class="block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card"
-					class:bg-primary-100={currentPath === item.href}
-					class:dark:bg-primary-900={currentPath === item.href}
-					class:text-primary-800={currentPath === item.href}
-					class:dark:text-primary-200={currentPath === item.href}
+					class="block px-4 py-3 rounded-lg {currentPath === item.href
+						? 'bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200'
+						: 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card'}"
 				>
 					{item.label}
 				</a>
@@ -135,9 +133,9 @@
 				<a
 					href={item.href}
 					on:click={closeMobileMenu}
-					class="block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card"
-					class:bg-primary-100={currentPath === item.href}
-					class:dark:bg-primary-900={currentPath === item.href}
+					class="block px-4 py-3 rounded-lg {currentPath === item.href
+						? 'bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200'
+						: 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card'}"
 				>
 					{item.label}
 				</a>
@@ -152,9 +150,9 @@
 		{#each navItems as item}
 			<a
 				href={item.href}
-				class="flex flex-col items-center justify-center text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
-				class:text-primary-600={currentPath === item.href}
-				class:dark:text-primary-400={currentPath === item.href}
+				class="flex flex-col items-center justify-center {currentPath === item.href
+					? 'text-primary-600 dark:text-primary-400'
+					: 'text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400'}"
 			>
 				{#if item.icon === 'home'}
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
