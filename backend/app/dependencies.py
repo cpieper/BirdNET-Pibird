@@ -3,6 +3,7 @@
 Provides database connections, authentication, and other shared dependencies.
 """
 import os
+import re
 import sqlite3
 from typing import Generator
 
@@ -150,3 +151,42 @@ def write_species_list(list_type: str, species: list[str]) -> None:
         f.write('\n'.join(species))
         if species:
             f.write('\n')
+
+
+# Species name utilities for file system operations
+def extract_species_from_filename(filename: str) -> str:
+    """Extract the species folder name from a BirdNET filename.
+    
+    Filenames follow the pattern: CommonName-confidence-date-birdnet-time.ext
+    Example: White-throated_Sparrow-70-2026-02-03-birdnet-17:53:14.mp3
+             -> White-throated_Sparrow
+    
+    Args:
+        filename: The audio filename
+        
+    Returns:
+        The species folder name (common name with underscores)
+    """
+    # Match pattern: species name followed by -NUMBER-YYYY
+    match = re.match(r'^(.+?)-\d+-\d{4}-', filename)
+    if match:
+        return match.group(1)
+    # Fallback: split on first hyphen followed by digit
+    parts = re.split(r'-(?=\d)', filename, maxsplit=1)
+    return parts[0] if parts else filename
+
+
+def common_name_to_folder(common_name: str) -> str:
+    """Convert a common name to the folder name format.
+    
+    Removes apostrophes and replaces spaces with underscores.
+    Example: "Cooper's Hawk" -> "Coopers_Hawk"
+             "Mourning Dove" -> "Mourning_Dove"
+    
+    Args:
+        common_name: The common name from the database
+        
+    Returns:
+        The folder-safe name
+    """
+    return common_name.replace("'", "").replace(" ", "_")

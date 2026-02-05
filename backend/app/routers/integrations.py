@@ -81,7 +81,7 @@ def cache_image(sci_name: str, image_data: dict, provider: str, settings: Settin
         pass
 
 
-@router.get("/image/{sci_name}", response_model=BirdImage)
+@router.get("/image/{sci_name}", response_model=Optional[BirdImage])
 async def get_bird_image(
     sci_name: str,
     force_refresh: bool = False,
@@ -90,6 +90,7 @@ async def get_bird_image(
     """Get an image for a bird species.
     
     Tries cached image first, then fetches from configured provider.
+    Returns null if no image is available (instead of 404).
     
     Args:
         sci_name: Scientific name of the species
@@ -127,7 +128,8 @@ async def get_bird_image(
         }, provider, settings)
         return image
     
-    raise HTTPException(status_code=404, detail=f"No image found for {sci_name}")
+    # Return null instead of 404 - let frontend handle gracefully
+    return None
 
 
 async def fetch_flickr_image(sci_name: str, settings: Settings) -> Optional[BirdImage]:

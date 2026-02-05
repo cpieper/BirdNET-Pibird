@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..config import get_settings, Settings
-from ..dependencies import get_db, verify_credentials
+from ..dependencies import get_db, verify_credentials, extract_species_from_filename
 from ..models.schemas import Detection, DetectionList, DetectionSummary
 
 router = APIRouter()
@@ -221,7 +221,7 @@ async def delete_detection(
     
     # Get the detection to find the file path
     cursor = db.execute(
-        "SELECT Date, Sci_Name FROM detections WHERE File_Name = ?",
+        "SELECT Date FROM detections WHERE File_Name = ?",
         (filename,)
     )
     row = cursor.fetchone()
@@ -230,10 +230,12 @@ async def delete_detection(
         raise HTTPException(status_code=404, detail="Detection not found")
     
     detection_date = row[0]
-    sci_name = row[1]
+    
+    # Extract species folder from filename (files are stored by common name, not scientific name)
+    species_folder = extract_species_from_filename(filename)
     
     # Build file paths
-    base_path = os.path.join(settings.by_date_dir, detection_date, sci_name)
+    base_path = os.path.join(settings.by_date_dir, detection_date, species_folder)
     audio_path = os.path.join(base_path, filename)
     spectrogram_path = audio_path + '.png'
     

@@ -1,14 +1,14 @@
 """Pydantic models for BirdNET-Pi API."""
-from datetime import date, time
+from datetime import date as DateType, time as TimeType
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # Detection schemas
 class Detection(BaseModel):
     """A single bird detection."""
-    date: date = Field(..., alias="Date")
-    time: time = Field(..., alias="Time")
+    date: DateType = Field(..., alias="Date")
+    time: TimeType = Field(..., alias="Time")
     sci_name: str = Field(..., alias="Sci_Name")
     com_name: str = Field(..., alias="Com_Name")
     confidence: float = Field(..., alias="Confidence")
@@ -20,9 +20,11 @@ class Detection(BaseModel):
     overlap: Optional[float] = Field(None, alias="Overlap")
     file_name: str = Field(..., alias="File_Name")
 
-    class Config:
-        populate_by_name = True
-        from_attributes = True
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,  # Serialize using aliases (Date, Time, etc.)
+    )
 
 
 class DetectionSummary(BaseModel):
@@ -36,17 +38,19 @@ class DetectionSummary(BaseModel):
 
 class SpeciesSummary(BaseModel):
     """Summary of a species with detection count."""
-    date: date = Field(..., alias="Date")
-    time: time = Field(..., alias="Time")
+    date: DateType = Field(..., alias="Date")
+    time: TimeType = Field(..., alias="Time")
     file_name: str = Field(..., alias="File_Name")
     com_name: str = Field(..., alias="Com_Name")
     sci_name: str = Field(..., alias="Sci_Name")
     count: int = Field(..., alias="Count")
     max_confidence: float = Field(..., alias="MaxConfidence")
 
-    class Config:
-        populate_by_name = True
-        from_attributes = True
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,  # Serialize using aliases (Date, Time, etc.)
+    )
 
 
 class DetectionList(BaseModel):

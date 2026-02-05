@@ -13,6 +13,7 @@ from ..dependencies import (
     verify_credentials,
     read_species_list,
     write_species_list,
+    common_name_to_folder,
 )
 from ..models.schemas import SpeciesSummary, SpeciesList, SpeciesListResponse, SpeciesListUpdate
 
@@ -185,11 +186,19 @@ async def delete_species_data(
     db.row_factory = sqlite3.Row
     
     try:
+        # Get the common name and dates for this species
         cursor = db.execute(
-            "SELECT DISTINCT Date FROM detections WHERE Sci_Name = ?",
+            "SELECT DISTINCT Date, Com_Name FROM detections WHERE Sci_Name = ?",
             (sci_name,)
         )
-        dates = [row[0] for row in cursor.fetchall()]
+        rows = cursor.fetchall()
+        
+        if not rows:
+            raise HTTPException(status_code=404, detail=f"No detections found for {sci_name}")
+        
+        dates = [row[0] for row in rows]
+        # Get the common name (should be consistent across all detections)
+        common_name = rows[0][1]
         
         # Delete from database
         db.execute("DELETE FROM detections WHERE Sci_Name = ?", (sci_name,))
@@ -197,10 +206,13 @@ async def delete_species_data(
     finally:
         db.close()
     
+    # Convert common name to folder format (removes apostrophes, replaces spaces with underscores)
+    species_folder = common_name_to_folder(common_name)
+    
     # Delete species directories for each date
     deleted_dirs = []
     for date in dates:
-        species_dir = os.path.join(settings.by_date_dir, date, sci_name)
+        species_dir = os.path.join(settings.by_date_dir, date, species_folder)
         if os.path.exists(species_dir):
             try:
                 shutil.rmtree(species_dir)
