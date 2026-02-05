@@ -27,11 +27,12 @@ def get_db_connection(readonly: bool = True) -> Generator[sqlite3.Connection, No
     settings = get_settings()
     db_path = settings.db_path
     
+    # check_same_thread=False is required for uvicorn workers
     if readonly:
         uri = f"file:{db_path}?mode=ro"
-        conn = sqlite3.connect(uri, uri=True)
+        conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
     else:
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(db_path, check_same_thread=False)
     
     conn.row_factory = sqlite3.Row
     try:
