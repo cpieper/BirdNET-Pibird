@@ -3,6 +3,7 @@
 	import { media } from '$lib/api';
 	import { AudioPlayer } from '$lib/components';
 	import { toasts } from '$lib/stores';
+	import { formatBirdName } from '$lib';
 
 	let dates: string[] = [];
 	let selectedDate = '';
@@ -106,7 +107,7 @@
 				>
 					<option value="">Select a species...</option>
 					{#each speciesForDate as sp}
-						<option value={sp.name}>{sp.name} ({sp.count})</option>
+						<option value={sp.name}>{formatBirdName(sp.name)} ({sp.count})</option>
 					{/each}
 				</select>
 			</div>
@@ -130,7 +131,7 @@
 							on:click={() => { selectedSpecies = sp.name; loadFiles(); }}
 							class="card p-4 text-left hover:shadow-lg transition-shadow"
 						>
-							<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{sp.name}</p>
+							<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{formatBirdName(sp.name)}</p>
 							<p class="text-sm text-gray-500 dark:text-gray-400">{sp.count} files</p>
 						</button>
 					{/each}
@@ -144,7 +145,7 @@
 		<div>
 			<div class="flex items-center justify-between mb-4">
 				<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-					{selectedSpecies} - {selectedDate}
+					{formatBirdName(selectedSpecies)} - {selectedDate}
 				</h2>
 				<button
 					on:click={() => { selectedSpecies = ''; files = []; }}
