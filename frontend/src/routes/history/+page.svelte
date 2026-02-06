@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
-	import { detections, integrations, type ChartData } from '$lib/api';
+	import { detections, integrations, type ChartData, type SpeciesHourly } from '$lib/api';
 	import { toasts } from '$lib/stores';
 
 	// Chart.js must be dynamically imported to avoid SSR issues
@@ -17,12 +17,22 @@
 	let hourlyChart: any = null;
 	let speciesChart: any = null;
 
+	// Species selected for hourly overlay
+	let selectedSpecies: Set<string> = new Set();
+
 	// Detect dark mode
 	let isDark = false;
 
 	function detectTheme() {
 		isDark = document.documentElement.classList.contains('dark');
 	}
+
+	// Extended palette for species (more colors for better differentiation)
+	const SPECIES_COLORS = [
+		'#16a34a', '#2563eb', '#d97706', '#dc2626', '#7c3aed',
+		'#0891b2', '#c026d3', '#ea580c', '#4f46e5', '#059669',
+		'#e11d48', '#0d9488', '#ca8a04', '#6366f1', '#84cc16',
+	];
 
 	function getChartColors() {
 		return {
@@ -32,11 +42,35 @@
 			barBg: isDark ? 'rgba(34,197,94,0.6)' : 'rgba(22,163,74,0.7)',
 			barBorder: isDark ? 'rgb(34,197,94)' : 'rgb(22,163,74)',
 			barHoverBg: isDark ? 'rgba(34,197,94,0.85)' : 'rgba(22,163,74,0.9)',
-			doughnutColors: [
-				'#16a34a', '#2563eb', '#d97706', '#dc2626', '#7c3aed',
-				'#0891b2', '#c026d3', '#ea580c', '#4f46e5', '#059669',
-			],
+			otherBg: isDark ? 'rgba(107,114,128,0.35)' : 'rgba(156,163,175,0.4)',
+			otherBorder: isDark ? 'rgba(107,114,128,0.5)' : 'rgba(156,163,175,0.6)',
+			doughnutColors: SPECIES_COLORS.slice(0, 10),
 		};
+	}
+
+	function getSpeciesColor(sciName: string): string {
+		if (!chartData) return SPECIES_COLORS[0];
+		const idx = chartData.top_species.findIndex(s => s.sci_name === sciName);
+		if (idx >= 0) return SPECIES_COLORS[idx % SPECIES_COLORS.length];
+		// For species not in top list, hash the name to pick a color
+		let hash = 0;
+		for (let i = 0; i < sciName.length; i++) hash = (hash * 31 + sciName.charCodeAt(i)) | 0;
+		return SPECIES_COLORS[Math.abs(hash) % SPECIES_COLORS.length];
+	}
+
+	function toggleSpecies(sciName: string) {
+		if (selectedSpecies.has(sciName)) {
+			selectedSpecies.delete(sciName);
+		} else {
+			selectedSpecies.add(sciName);
+		}
+		selectedSpecies = new Set(selectedSpecies); // Trigger reactivity
+		renderCharts();
+	}
+
+	function clearSelectedSpecies() {
+		selectedSpecies = new Set();
+		renderCharts();
 	}
 
 	async function loadDates() {
@@ -55,6 +89,7 @@
 	async function loadChartData() {
 		if (!selectedDate) return;
 		loading = true;
+		selectedSpecies = new Set(); // Reset selections on date change
 		try {
 			chartData = await detections.chartData(selectedDate);
 		} catch (e) {
@@ -78,39 +113,96 @@
 		renderSpeciesChart(colors);
 	}
 
+	function getHourLabel(hour: number): string {
+		if (hour === 0) return '12am';
+		if (hour === 12) return '12pm';
+		return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
+	}
+
 	function renderHourlyChart(colors: ReturnType<typeof getChartColors>) {
 		if (!chartData || !hourlyCanvas) return;
 
 		if (hourlyChart) hourlyChart.destroy();
 
-		const labels = chartData.hourly.map(h => {
-			const hour = h.hour;
-			if (hour === 0) return '12am';
-			if (hour === 12) return '12pm';
-			return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
-		});
+		const labels = chartData.hourly.map(h => getHourLabel(h.hour));
+		const totalCounts = chartData.hourly.map(h => h.count);
+
+		// Build datasets based on whether species are selected
+		let datasets: any[];
+
+		if (selectedSpecies.size === 0) {
+			// No species selected: simple single-color bar chart
+			datasets = [{
+				label: 'Detections',
+				data: totalCounts,
+				backgroundColor: colors.barBg,
+				borderColor: colors.barBorder,
+				borderWidth: 1,
+				borderRadius: 4,
+				hoverBackgroundColor: colors.barHoverBg,
+			}];
+		} else {
+			// Species selected: stacked bar chart
+			// Build a dataset for each selected species + an "Other" remainder
+			const speciesMap = new Map<string, SpeciesHourly>();
+			for (const sh of chartData.species_hourly) {
+				speciesMap.set(sh.sci_name, sh);
+			}
+
+			datasets = [];
+			const selectedTotals = new Array(24).fill(0);
+
+			for (const sciName of selectedSpecies) {
+				const sh = speciesMap.get(sciName);
+				if (!sh) continue;
+				const color = getSpeciesColor(sciName);
+				datasets.push({
+					label: sh.com_name,
+					data: sh.hourly,
+					backgroundColor: color + 'cc', // slightly transparent
+					borderColor: color,
+					borderWidth: 1,
+					borderRadius: 2,
+				});
+				for (let i = 0; i < 24; i++) {
+					selectedTotals[i] += sh.hourly[i];
+				}
+			}
+
+			// "Other" dataset = total minus selected species
+			const otherData = totalCounts.map((t, i) => Math.max(0, t - selectedTotals[i]));
+			if (otherData.some(v => v > 0)) {
+				datasets.push({
+					label: 'Other',
+					data: otherData,
+					backgroundColor: colors.otherBg,
+					borderColor: colors.otherBorder,
+					borderWidth: 1,
+					borderRadius: 2,
+				});
+			}
+		}
 
 		hourlyChart = new ChartJS(hourlyCanvas, {
 			type: 'bar',
-			data: {
-				labels,
-				datasets: [{
-					label: 'Detections',
-					data: chartData.hourly.map(h => h.count),
-					backgroundColor: colors.barBg,
-					borderColor: colors.barBorder,
-					borderWidth: 1,
-					borderRadius: 4,
-					hoverBackgroundColor: colors.barHoverBg,
-				}],
-			},
+			data: { labels, datasets },
 			options: {
 				responsive: true,
 				maintainAspectRatio: false,
-				animation: { duration: 500, easing: 'easeOutQuart' },
+				animation: { duration: 400, easing: 'easeOutQuart' },
 				interaction: { mode: 'index', intersect: false },
 				plugins: {
-					legend: { display: false },
+					legend: {
+						display: selectedSpecies.size > 0,
+						position: 'top',
+						labels: {
+							color: colors.text,
+							usePointStyle: true,
+							pointStyle: 'rectRounded',
+							padding: 16,
+							font: { size: 12 },
+						},
+					},
 					tooltip: {
 						backgroundColor: isDark ? '#1f2937' : '#fff',
 						titleColor: colors.text,
@@ -120,24 +212,29 @@
 						padding: 12,
 						cornerRadius: 8,
 						callbacks: {
-							label: (ctx) => `${ctx.parsed.y} detection${ctx.parsed.y !== 1 ? 's' : ''}`,
+							label: (ctx) => {
+								const val = ctx.parsed.y;
+								if (val === 0) return '';
+								return ` ${ctx.dataset.label}: ${val} detection${val !== 1 ? 's' : ''}`;
+							},
 						},
 					},
 				},
 				scales: {
 					x: {
+						stacked: selectedSpecies.size > 0,
 						grid: { display: false },
 						ticks: {
 							color: colors.textMuted,
 							font: { size: 11 },
 							maxRotation: 0,
 							callback: function(_value, index) {
-								// Show every 3rd label to avoid crowding
 								return index % 3 === 0 ? labels[index] : '';
 							},
 						},
 					},
 					y: {
+						stacked: selectedSpecies.size > 0,
 						beginAtZero: true,
 						grid: { color: colors.grid },
 						ticks: {
@@ -338,9 +435,16 @@
 			<!-- Hourly chart -->
 			<div class="card mb-6">
 				<div class="card-header flex items-center justify-between">
-					<h2 class="font-semibold text-gray-900 dark:text-gray-100">
-						Detections by Hour
-					</h2>
+					<div>
+						<h2 class="font-semibold text-gray-900 dark:text-gray-100">
+							Detections by Hour
+						</h2>
+						{#if selectedSpecies.size > 0}
+							<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+								Showing {selectedSpecies.size} selected species
+							</p>
+						{/if}
+					</div>
 					<button
 						on:click={exportEbird}
 						disabled={exportLoading}
@@ -381,30 +485,63 @@
 
 				<!-- Top species list -->
 				<div class="card md:col-span-2">
-					<div class="card-header">
+					<div class="card-header flex items-center justify-between">
 						<h2 class="font-semibold text-gray-900 dark:text-gray-100">
 							Top Species
 						</h2>
+						<div class="flex items-center gap-2">
+							{#if selectedSpecies.size > 0}
+								<button
+									on:click={clearSelectedSpecies}
+									class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+								>
+									Clear selections
+								</button>
+							{/if}
+							<span class="text-xs text-gray-400 dark:text-gray-500">Click to show on chart</span>
+						</div>
 					</div>
 					{#if chartData.top_species.length > 0}
 						<div class="divide-y divide-gray-200 dark:divide-dark-border">
 							{#each chartData.top_species as sp, i}
-								<a href="/species/{encodeURIComponent(sp.sci_name)}" class="flex items-center gap-4 px-6 py-3 hover:bg-gray-50 dark:hover:bg-dark-border transition-colors">
-									<span
-										class="w-3 h-3 rounded-full flex-shrink-0"
-										style="background-color: {getChartColors().doughnutColors[i] || '#6b7280'}"
-									/>
-									<div class="flex-1 min-w-0">
-										<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{sp.com_name}</p>
-										<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">{sp.sci_name}</p>
-									</div>
-									<div class="flex items-center gap-4 flex-shrink-0">
-										<span class="badge-primary">{(sp.max_confidence * 100).toFixed(0)}%</span>
-										<div class="text-right">
-											<span class="text-lg font-semibold text-primary-600 dark:text-primary-400">{sp.count}</span>
+								<div class="flex items-center gap-0">
+									<!-- Clickable toggle for the chart -->
+									<button
+										on:click={() => toggleSpecies(sp.sci_name)}
+										class="flex items-center gap-4 flex-1 min-w-0 px-6 py-3 transition-colors
+											{selectedSpecies.has(sp.sci_name)
+												? 'bg-gray-100 dark:bg-dark-border'
+												: 'hover:bg-gray-50 dark:hover:bg-dark-border/50'}"
+										title="Toggle {sp.com_name} on hourly chart"
+									>
+										<span
+											class="w-3 h-3 rounded-full flex-shrink-0 transition-all
+												{selectedSpecies.has(sp.sci_name) ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800' : ''}"
+											style="background-color: {SPECIES_COLORS[i % SPECIES_COLORS.length]};
+												{selectedSpecies.has(sp.sci_name) ? `ring-color: ${SPECIES_COLORS[i % SPECIES_COLORS.length]}` : ''}"
+										/>
+										<div class="flex-1 min-w-0 text-left">
+											<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{sp.com_name}</p>
+											<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">{sp.sci_name}</p>
 										</div>
-									</div>
-								</a>
+										<div class="flex items-center gap-4 flex-shrink-0">
+											<span class="badge-primary">{(sp.max_confidence * 100).toFixed(0)}%</span>
+											<div class="text-right">
+												<span class="text-lg font-semibold text-primary-600 dark:text-primary-400">{sp.count}</span>
+											</div>
+										</div>
+									</button>
+									<!-- Link to species detail page -->
+									<a
+										href="/species/{encodeURIComponent(sp.sci_name)}"
+										class="px-4 py-3 text-gray-400 hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400 transition-colors flex-shrink-0"
+										title="View {sp.com_name} details"
+									>
+										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+										</svg>
+									</a>
+								</div>
 							{/each}
 						</div>
 					{:else}

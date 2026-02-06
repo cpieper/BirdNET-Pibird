@@ -277,12 +277,19 @@ export interface SystemInfo {
 	services: ServiceStatus[];
 }
 
+export interface SpeciesHourly {
+	sci_name: string;
+	com_name: string;
+	hourly: number[];
+}
+
 export interface ChartData {
 	date: string;
 	total_detections: number;
 	species_count: number;
 	hourly: { hour: number; count: number }[];
 	top_species: { com_name: string; sci_name: string; count: number; max_confidence: number }[];
+	species_hourly: SpeciesHourly[];
 }
 
 export interface BirdImage {

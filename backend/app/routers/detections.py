@@ -229,6 +229,32 @@ async def get_chart_data(
         for row in species_rows
     ]
     
+    # Per-species hourly breakdown (for all species detected that day)
+    species_hourly_sql = """
+        SELECT Sci_Name, Com_Name,
+               CAST(SUBSTR(Time, 1, 2) AS INTEGER) as hour,
+               COUNT(*) as count
+        FROM detections
+        WHERE Date = ?
+        GROUP BY Sci_Name, hour
+        ORDER BY Sci_Name, hour
+    """
+    species_hourly_rows = db.execute(species_hourly_sql, (date,)).fetchall()
+    
+    # Organize into { sci_name: { com_name, hourly: [24 counts] } }
+    species_hourly_map: dict = {}
+    for row in species_hourly_rows:
+        sci_name = row[0]
+        if sci_name not in species_hourly_map:
+            species_hourly_map[sci_name] = {
+                "sci_name": sci_name,
+                "com_name": row[1],
+                "hourly": [0] * 24,
+            }
+        species_hourly_map[sci_name]["hourly"][row[2]] = row[3]
+    
+    species_hourly = list(species_hourly_map.values())
+    
     # Summary stats
     total = sum(h["count"] for h in hourly)
     species_count = db.execute(
@@ -241,6 +267,7 @@ async def get_chart_data(
         "species_count": species_count,
         "hourly": hourly,
         "top_species": top_species,
+        "species_hourly": species_hourly,
     }
 
 
