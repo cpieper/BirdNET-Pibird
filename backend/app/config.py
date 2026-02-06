@@ -124,7 +124,7 @@ class Settings:
 
     @property
     def image_provider(self) -> str:
-        return self.config.get('IMAGE_PROVIDER', 'flickr')
+        return self.config.get('IMAGE_PROVIDER', 'wikipedia')
 
     # Paths
     @property

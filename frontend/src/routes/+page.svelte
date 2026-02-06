@@ -126,6 +126,9 @@
 		</div>
 
 		<!-- Bottom Section -->
+		<!-- TODO: Add a webcam/feeder cam panel here - either a live MJPEG/HLS stream
+		     or a regularly-refreshed static snapshot from the feeder camera.
+		     Could replace or sit alongside the Top Species card. -->
 		<div class="grid md:grid-cols-3 gap-6">
 			<!-- Today's Activity -->
 			<div class="card">

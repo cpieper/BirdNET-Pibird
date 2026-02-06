@@ -68,6 +68,8 @@ export const detections = {
 
 	dates: () => request<{ dates: string[] }>('/detections/dates'),
 
+	chartData: (date: string) => request<ChartData>(`/detections/chart-data/${date}`),
+
 	delete: (filename: string, auth: { username: string; password: string }) =>
 		request(`/detections/${encodeURIComponent(filename)}`, { method: 'DELETE', auth }),
 };
@@ -273,6 +275,14 @@ export interface SystemInfo {
 	uptime: string | null;
 	disk_usage: { total: string; used: string; available: string; percent: string } | null;
 	services: ServiceStatus[];
+}
+
+export interface ChartData {
+	date: string;
+	total_detections: number;
+	species_count: number;
+	hourly: { hour: number; count: number }[];
+	top_species: { com_name: string; sci_name: string; count: number; max_confidence: number }[];
 }
 
 export interface BirdImage {

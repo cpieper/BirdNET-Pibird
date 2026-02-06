@@ -1,5 +1,6 @@
 """External integration API endpoints (Flickr, Wikipedia, BirdWeather)."""
 import json
+import logging
 import os
 import sqlite3
 from typing import Optional
@@ -9,6 +10,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..config import get_settings, Settings
 from ..models.schemas import BirdImage
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -97,11 +100,13 @@ async def get_bird_image(
         force_refresh: If True, skip cache and fetch fresh image
     """
     provider = settings.image_provider.lower()
+    logger.debug("Image request for '%s' using provider '%s'", sci_name, provider)
     
     # Check cache first
     if not force_refresh:
         cached = get_cached_image(sci_name, provider, settings)
         if cached and cached.get('image_url'):
+            logger.debug("Cache hit for '%s'", sci_name)
             return BirdImage(
                 url=cached['image_url'],
                 title=cached.get('title'),
@@ -119,6 +124,7 @@ async def get_bird_image(
         raise HTTPException(status_code=400, detail=f"Unknown image provider: {provider}")
     
     if image:
+        logger.debug("Fetched image for '%s' from %s: %s", sci_name, provider, image.url)
         # Cache the result
         cache_image(sci_name, {
             'url': image.url,
@@ -128,6 +134,7 @@ async def get_bird_image(
         }, provider, settings)
         return image
     
+    logger.warning("No image found for '%s' from provider '%s'", sci_name, provider)
     # Return null instead of 404 - let frontend handle gracefully
     return None
 
@@ -137,6 +144,7 @@ async def fetch_flickr_image(sci_name: str, settings: Settings) -> Optional[Bird
     api_key = settings.flickr_api_key
     
     if not api_key:
+        logger.debug("No Flickr API key configured, skipping Flickr for '%s'", sci_name)
         return None
     
     async with httpx.AsyncClient() as client:
@@ -199,7 +207,8 @@ async def fetch_flickr_image(sci_name: str, settings: Settings) -> Optional[Bird
                 license_url=photo_info.get('license', ''),
                 source='flickr',
             )
-        except Exception:
+        except Exception as e:
+            logger.error("Flickr fetch failed for '%s': %s", sci_name, e)
             return None
 
 
@@ -213,6 +222,7 @@ async def fetch_wikipedia_image(sci_name: str) -> Optional[BirdImage]:
             response = await client.get(url, timeout=10)
             
             if response.status_code != 200:
+                logger.warning("Wikipedia returned %d for '%s'", response.status_code, sci_name)
                 return None
             
             data = response.json()
@@ -224,6 +234,7 @@ async def fetch_wikipedia_image(sci_name: str) -> Optional[BirdImage]:
             image_url = original.get('source') or thumbnail.get('source')
             
             if not image_url:
+                logger.debug("Wikipedia page for '%s' has no image", sci_name)
                 return None
             
             return BirdImage(
@@ -231,7 +242,8 @@ async def fetch_wikipedia_image(sci_name: str) -> Optional[BirdImage]:
                 title=data.get('title', sci_name),
                 source='wikipedia',
             )
-        except Exception:
+        except Exception as e:
+            logger.error("Wikipedia fetch failed for '%s': %s", sci_name, e)
             return None
 
 

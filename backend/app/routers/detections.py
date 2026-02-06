@@ -183,6 +183,67 @@ async def get_detection_dates(
     return {"dates": [row[0] for row in rows]}
 
 
+@router.get("/detections/chart-data/{date}")
+async def get_chart_data(
+    date: str,
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Get hourly detection counts and species breakdown for a date.
+    
+    Returns data suitable for rendering interactive charts.
+    
+    Args:
+        date: Date to get chart data for (YYYY-MM-DD)
+    """
+    # Hourly detection counts
+    hourly_sql = """
+        SELECT CAST(SUBSTR(Time, 1, 2) AS INTEGER) as hour, COUNT(*) as count
+        FROM detections
+        WHERE Date = ?
+        GROUP BY hour
+        ORDER BY hour
+    """
+    hourly_rows = db.execute(hourly_sql, (date,)).fetchall()
+    
+    # Build full 24-hour array (fill gaps with 0)
+    hourly_counts = {row[0]: row[1] for row in hourly_rows}
+    hourly = [{"hour": h, "count": hourly_counts.get(h, 0)} for h in range(24)]
+    
+    # Top species for the day
+    species_sql = """
+        SELECT Com_Name, Sci_Name, COUNT(*) as count, MAX(Confidence) as max_confidence
+        FROM detections
+        WHERE Date = ?
+        GROUP BY Sci_Name
+        ORDER BY count DESC
+        LIMIT 10
+    """
+    species_rows = db.execute(species_sql, (date,)).fetchall()
+    top_species = [
+        {
+            "com_name": row[0],
+            "sci_name": row[1],
+            "count": row[2],
+            "max_confidence": round(row[3], 2),
+        }
+        for row in species_rows
+    ]
+    
+    # Summary stats
+    total = sum(h["count"] for h in hourly)
+    species_count = db.execute(
+        "SELECT COUNT(DISTINCT Sci_Name) FROM detections WHERE Date = ?", (date,)
+    ).fetchone()[0]
+    
+    return {
+        "date": date,
+        "total_detections": total,
+        "species_count": species_count,
+        "hourly": hourly,
+        "top_species": top_species,
+    }
+
+
 @router.get("/detections/by-file/{filename:path}")
 async def get_detection_by_file(
     filename: str,
