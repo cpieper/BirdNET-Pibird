@@ -36,7 +36,7 @@
 
 		actionLoading[service] = true;
 		try {
-			await systemApi.controlService(service, action, $auth.getCredentials());
+			await systemApi.controlService(service, action, auth.getCredentials());
 			toasts.show(`Service ${service} ${action} successful`, 'success');
 			// Refresh services
 			const result = await systemApi.services();
@@ -61,7 +61,7 @@
 
 		actionLoading['all'] = true;
 		try {
-			await systemApi.restartServices($auth.getCredentials());
+			await systemApi.restartServices(auth.getCredentials());
 			toasts.show('Services restart initiated', 'success');
 			// Refresh after a delay
 			setTimeout(loadData, 3000);
@@ -86,7 +86,7 @@
 		if (!confirm('Are you sure you want to reboot the system?')) return;
 
 		try {
-			await systemApi.reboot($auth.getCredentials());
+			await systemApi.reboot(auth.getCredentials());
 			toasts.show('System reboot initiated', 'info');
 		} catch (e: any) {
 			if (e.status === 401) {

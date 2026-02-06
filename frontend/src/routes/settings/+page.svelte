@@ -35,7 +35,7 @@
 		loading = true;
 		try {
 			const [configData, modelsData, langsData] = await Promise.all([
-				configApi.get($auth.getCredentials()),
+				configApi.get(auth.getCredentials()),
 				configApi.models(),
 				configApi.languages(),
 			]);
@@ -83,7 +83,7 @@
 					overlap: parseFloat(overlap),
 					birdweather_id: birdweatherId,
 				},
-				$auth.getCredentials()
+				auth.getCredentials()
 			);
 			toasts.show('Configuration saved', 'success');
 		} catch (e) {
