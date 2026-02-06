@@ -57,8 +57,6 @@
 		loading = true;
 		try {
 			chartData = await detections.chartData(selectedDate);
-			await tick();
-			renderCharts();
 		} catch (e) {
 			console.error('Failed to load chart data:', e);
 			toasts.show('Failed to load chart data', 'error');
@@ -66,6 +64,10 @@
 		} finally {
 			loading = false;
 		}
+		// Wait for DOM update after loading=false so canvas elements are rendered,
+		// then draw the charts
+		await tick();
+		renderCharts();
 	}
 
 	function renderCharts() {
