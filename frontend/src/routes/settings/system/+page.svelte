@@ -12,17 +12,28 @@
 	let actionLoading: Record<string, boolean> = {};
 
 	async function loadData() {
+		if (!$auth.isAuthenticated) {
+			showLoginModal = true;
+			loading = false;
+			return;
+		}
+
 		loading = true;
 		try {
 			const [infoData, servicesData] = await Promise.all([
-				systemApi.info(),
-				systemApi.services(),
+				systemApi.info(auth.getCredentials()),
+				systemApi.services(auth.getCredentials()),
 			]);
 			systemInfo = infoData;
 			services = servicesData.services;
-		} catch (e) {
-			console.error('Failed to load system info:', e);
-			toasts.show('Failed to load system information', 'error');
+		} catch (e: any) {
+			if (e.status === 401) {
+				auth.logout();
+				showLoginModal = true;
+			} else {
+				console.error('Failed to load system info:', e);
+				toasts.show('Failed to load system information', 'error');
+			}
 		} finally {
 			loading = false;
 		}
@@ -39,7 +50,7 @@
 			await systemApi.controlService(service, action, auth.getCredentials());
 			toasts.show(`Service ${service} ${action} successful`, 'success');
 			// Refresh services
-			const result = await systemApi.services();
+			const result = await systemApi.services(auth.getCredentials());
 			services = result.services;
 		} catch (e: any) {
 			if (e.status === 401) {
@@ -101,6 +112,7 @@
 	function handleLogin() {
 		auth.login(passwordInput);
 		showLoginModal = false;
+		loadData();
 	}
 
 	onMount(loadData);
@@ -119,6 +131,13 @@
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+		</div>
+	{:else if !$auth.isAuthenticated}
+		<div class="card p-8 text-center">
+			<p class="text-gray-600 dark:text-gray-400 mb-4">Please log in to access system information</p>
+			<button on:click={() => showLoginModal = true} class="btn-primary">
+				Log in
+			</button>
 		</div>
 	{:else}
 		<!-- System Info -->

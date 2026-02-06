@@ -62,15 +62,26 @@ def get_service_status(service_name: str) -> ServiceStatus:
 
 
 @router.get("/system/services")
-async def list_services():
-    """Get status of all BirdNET-Pi services."""
+async def list_services(
+    user: str = Depends(verify_credentials),
+):
+    """Get status of all BirdNET-Pi services.
+    
+    Requires authentication.
+    """
     services = [get_service_status(name) for name in SERVICES]
     return {"services": services}
 
 
 @router.get("/system/services/{service_name}")
-async def get_service(service_name: str):
-    """Get status of a specific service."""
+async def get_service(
+    service_name: str,
+    user: str = Depends(verify_credentials),
+):
+    """Get status of a specific service.
+    
+    Requires authentication.
+    """
     if service_name not in SERVICES:
         raise HTTPException(status_code=404, detail=f"Unknown service: {service_name}")
     
@@ -262,9 +273,13 @@ async def restore_backup(
 
 @router.get("/system/info")
 async def get_system_info(
+    user: str = Depends(verify_credentials),
     settings: Settings = Depends(get_settings),
 ):
-    """Get system information."""
+    """Get system information.
+    
+    Requires authentication.
+    """
     # Read version
     version = "unknown"
     version_path = os.path.join(settings.base_path, 'version.md')

@@ -1,26 +1,29 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { detections, health, type Detection, type DetectionStats } from '$lib/api';
-	import { StatsCard, DetectionCard } from '$lib/components';
+	import { detections, health, species as speciesApi, type Detection, type DetectionStats, type SpeciesSummary } from '$lib/api';
+	import { StatsCard, DetectionCard, SpeciesImage } from '$lib/components';
 	import { toasts } from '$lib/stores';
 
 	let stats: DetectionStats | null = null;
 	let latestDetections: Detection[] = [];
-	let siteInfo: { name: string; version: string } | null = null;
+	let topSpecies: SpeciesSummary[] = [];
+	let siteName: string = 'BirdNET-Pi';
 	let loading = true;
 	let refreshInterval: ReturnType<typeof setInterval>;
 
 	async function loadData() {
 		try {
-			const [statsData, detectionsData, infoData] = await Promise.all([
+			const [statsData, detectionsData, infoData, speciesData] = await Promise.all([
 				detections.stats(),
 				detections.today({ limit: 10 }),
 				health.info(),
+				speciesApi.list({ sort: 'count' }),
 			]);
 			
 			stats = statsData;
 			latestDetections = detectionsData.detections;
-			siteInfo = { name: infoData.site_name, version: infoData.version };
+			siteName = infoData.site_name;
+			topSpecies = speciesData.species.slice(0, 6);
 		} catch (e) {
 			console.error('Failed to load data:', e);
 			toasts.show('Failed to load data', 'error');
@@ -41,14 +44,14 @@
 </script>
 
 <svelte:head>
-	<title>{siteInfo?.name || 'BirdNET-Pi'} - Overview</title>
+	<title>{siteName} - Overview</title>
 </svelte:head>
 
 <div class="container mx-auto px-4 py-6">
 	<!-- Header -->
 	<div class="mb-8">
 		<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
-			{siteInfo?.name || 'BirdNET-Pi'}
+			{siteName}
 		</h1>
 		<p class="text-gray-600 dark:text-gray-400 mt-1">
 			Real-time bird detection dashboard
@@ -122,8 +125,8 @@
 			{/if}
 		</div>
 
-		<!-- Quick Stats Summary -->
-		<div class="grid md:grid-cols-2 gap-6">
+		<!-- Bottom Section -->
+		<div class="grid md:grid-cols-3 gap-6">
 			<!-- Today's Activity -->
 			<div class="card">
 				<div class="card-header">
@@ -147,27 +150,41 @@
 				</div>
 			</div>
 
-			<!-- System Info -->
-			<div class="card">
-				<div class="card-header">
-					<h3 class="font-semibold text-gray-900 dark:text-gray-100">System</h3>
+			<!-- Top Species -->
+			<div class="card md:col-span-2">
+				<div class="card-header flex items-center justify-between">
+					<h3 class="font-semibold text-gray-900 dark:text-gray-100">Top Species</h3>
+					<a href="/species" class="text-primary-600 dark:text-primary-400 hover:underline text-sm">
+						View all →
+					</a>
 				</div>
-				<div class="card-body">
-					<div class="space-y-4">
-						<div class="flex justify-between items-center">
-							<span class="text-gray-600 dark:text-gray-400">Version</span>
-							<span class="font-mono text-sm text-gray-900 dark:text-gray-100">{siteInfo?.version || 'Unknown'}</span>
-						</div>
-						<div class="flex justify-between items-center">
-							<span class="text-gray-600 dark:text-gray-400">All-time detections</span>
-							<span class="font-semibold text-gray-900 dark:text-gray-100">{stats?.total_count || 0}</span>
-						</div>
-						<div class="flex justify-between items-center">
-							<span class="text-gray-600 dark:text-gray-400">Total species</span>
-							<span class="font-semibold text-gray-900 dark:text-gray-100">{stats?.species_tally || 0}</span>
-						</div>
+				{#if topSpecies.length === 0}
+					<div class="card-body text-center py-8">
+						<svg class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<p class="text-gray-500 dark:text-gray-400">No species detected yet</p>
+						<p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Species will appear here as they are identified</p>
 					</div>
-				</div>
+				{:else}
+					<div class="divide-y divide-gray-200 dark:divide-dark-border">
+						{#each topSpecies as sp (sp.Sci_Name)}
+							<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="flex items-center gap-4 px-6 py-3 hover:bg-gray-50 dark:hover:bg-dark-border transition-colors">
+								<div class="flex-shrink-0 rounded-full overflow-hidden">
+									<SpeciesImage sciName={sp.Sci_Name} size="xs" />
+								</div>
+								<div class="flex-1 min-w-0">
+									<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{sp.Com_Name}</p>
+									<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">{sp.Sci_Name}</p>
+								</div>
+								<div class="flex-shrink-0 text-right">
+									<span class="text-lg font-semibold text-primary-600 dark:text-primary-400">{sp.Count}</span>
+									<p class="text-xs text-gray-500 dark:text-gray-400">{sp.Count === 1 ? 'detection' : 'detections'}</p>
+								</div>
+							</a>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/if}

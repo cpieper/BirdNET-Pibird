@@ -150,9 +150,9 @@ export const config = {
 
 // System API
 export const system = {
-	info: () => request<SystemInfo>('/system/info'),
+	info: (auth: { username: string; password: string }) => request<SystemInfo>('/system/info', { auth }),
 
-	services: () => request<{ services: ServiceStatus[] }>('/system/services'),
+	services: (auth: { username: string; password: string }) => request<{ services: ServiceStatus[] }>('/system/services', { auth }),
 
 	controlService: (service: string, action: string, auth: { username: string; password: string }) =>
 		request(`/system/services/${service}/${action}`, { method: 'POST', auth }),

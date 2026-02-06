@@ -3,13 +3,14 @@
 	import { integrations, type BirdImage } from '$lib/api';
 
 	export let sciName: string;
-	export let size: 'sm' | 'md' | 'lg' = 'md';
+	export let size: 'xs' | 'sm' | 'md' | 'lg' = 'md';
 
 	let imageData: BirdImage | null = null;
 	let loading = true;
 	let error = false;
 
 	const sizeClasses = {
+		xs: 'w-10 h-10',
 		sm: 'w-20 h-20',
 		md: 'w-32 h-32',
 		lg: 'w-48 h-48',
