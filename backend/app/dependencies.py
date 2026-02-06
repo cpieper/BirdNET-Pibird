@@ -66,10 +66,17 @@ def verify_credentials(
         Username if authenticated
         
     Raises:
-        HTTPException: If credentials are invalid
+        HTTPException: If credentials are invalid or password not configured
     """
     correct_username = "birdnet"
     correct_password = settings.caddy_password
+    
+    # If no password is configured, deny access with helpful message
+    if not correct_password:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication not configured. Please set CADDY_PWD in /etc/birdnet/birdnet.conf",
+        )
     
     if credentials.username != correct_username or credentials.password != correct_password:
         raise HTTPException(

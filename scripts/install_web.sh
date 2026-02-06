@@ -216,6 +216,65 @@ disable_php_services() {
     echo_info "PHP services disabled"
 }
 
+verify_directories() {
+    echo_step "Verifying directory structure..."
+    
+    # Source config to get directory paths
+    source "$CONFIG_FILE" 2>/dev/null || true
+    
+    # Set defaults if not defined
+    RECS_DIR="${RECS_DIR:-$HOME/BirdSongs}"
+    EXTRACTED="${EXTRACTED:-$HOME/BirdSongs/Extracted}"
+    
+    # Create required directories
+    mkdir -p "${EXTRACTED}/By_Date" 2>/dev/null || true
+    mkdir -p "${EXTRACTED}/Charts" 2>/dev/null || true
+    
+    # Verify database exists
+    if [ ! -f "$BIRDNET_DIR/scripts/birds.db" ]; then
+        echo_warn "Database not found, creating..."
+        if [ -f "$BIRDNET_DIR/scripts/createdb.sh" ]; then
+            cd "$BIRDNET_DIR/scripts" && ./createdb.sh
+        fi
+    fi
+    
+    echo_info "Directory structure verified"
+}
+
+check_password_config() {
+    echo_step "Checking authentication configuration..."
+    
+    source "$CONFIG_FILE" 2>/dev/null || true
+    
+    if [ -z "${CADDY_PWD}" ]; then
+        echo ""
+        echo_warn "No password is configured for the web interface settings."
+        echo_warn "The Settings page requires authentication to prevent unauthorized changes."
+        echo ""
+        read -p "Would you like to set a password now? [Y/n] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            read -s -p "Enter password for 'birdnet' user: " NEW_PWD
+            echo
+            if [ -n "$NEW_PWD" ]; then
+                # Update config file
+                if grep -q "^CADDY_PWD=" "$CONFIG_FILE"; then
+                    sudo sed -i "s/^CADDY_PWD=.*/CADDY_PWD=\"$NEW_PWD\"/" "$CONFIG_FILE"
+                else
+                    echo "CADDY_PWD=\"$NEW_PWD\"" | sudo tee -a "$CONFIG_FILE" > /dev/null
+                fi
+                echo_info "Password configured successfully"
+            else
+                echo_warn "Empty password entered, skipping"
+            fi
+        else
+            echo_warn "Skipping password setup. You can set CADDY_PWD in $CONFIG_FILE later."
+        fi
+    else
+        echo_info "Password already configured"
+    fi
+}
+
 start_services() {
     echo_step "Starting services..."
     
@@ -324,6 +383,8 @@ main() {
             ;;
         migrate)
             # Migration from PHP
+            verify_directories
+            check_password_config
             install_nodejs
             install_backend_deps
             build_frontend
@@ -334,6 +395,8 @@ main() {
             ;;
         add|update)
             # Add web interface or update existing
+            verify_directories
+            check_password_config
             install_nodejs
             install_backend_deps
             build_frontend
@@ -359,6 +422,17 @@ main() {
     if [ "$INSTALL_MODE" == "migrate" ]; then
         echo_warn "PHP services have been disabled."
         echo_warn "If you need to revert, restore /etc/caddy/Caddyfile.backup.*"
+    fi
+    
+    # Check if password was configured
+    source "$CONFIG_FILE" 2>/dev/null || true
+    if [ -z "${CADDY_PWD}" ]; then
+        echo ""
+        echo_warn "Note: No password configured. Settings page will be inaccessible."
+        echo_warn "To enable settings, set CADDY_PWD in $CONFIG_FILE and restart birdnet-web"
+    else
+        echo ""
+        echo "Settings page login: username 'birdnet'"
     fi
     
     echo "=============================================="

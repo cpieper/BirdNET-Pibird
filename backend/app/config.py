@@ -141,7 +141,7 @@ class Settings:
 
     @property
     def charts_dir(self) -> str:
-        return os.path.join(BASE_PATH, 'homepage', 'Charts')
+        return os.path.join(self.extracted_dir, 'Charts')
 
     @property
     def by_date_dir(self) -> str:
