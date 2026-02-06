@@ -2,7 +2,9 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { detections, integrations, type ChartData } from '$lib/api';
 	import { toasts } from '$lib/stores';
-	import Chart from 'chart.js/auto';
+
+	// Chart.js must be dynamically imported to avoid SSR issues
+	let ChartJS: typeof import('chart.js/auto').default;
 
 	let dates: string[] = [];
 	let selectedDate = '';
@@ -12,8 +14,8 @@
 
 	let hourlyCanvas: HTMLCanvasElement;
 	let speciesCanvas: HTMLCanvasElement;
-	let hourlyChart: Chart | null = null;
-	let speciesChart: Chart | null = null;
+	let hourlyChart: any = null;
+	let speciesChart: any = null;
 
 	// Detect dark mode
 	let isDark = false;
@@ -67,7 +69,7 @@
 	}
 
 	function renderCharts() {
-		if (!chartData) return;
+		if (!chartData || !ChartJS) return;
 		detectTheme();
 		const colors = getChartColors();
 		renderHourlyChart(colors);
@@ -86,7 +88,7 @@
 			return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
 		});
 
-		hourlyChart = new Chart(hourlyCanvas, {
+		hourlyChart = new ChartJS(hourlyCanvas, {
 			type: 'bar',
 			data: {
 				labels,
@@ -154,7 +156,7 @@
 
 		const species = chartData.top_species.slice(0, 8);
 
-		speciesChart = new Chart(speciesCanvas, {
+		speciesChart = new ChartJS(speciesCanvas, {
 			type: 'doughnut',
 			data: {
 				labels: species.map(s => s.com_name),
@@ -237,7 +239,11 @@
 	// Watch for theme changes
 	let themeObserver: MutationObserver;
 
-	onMount(() => {
+	onMount(async () => {
+		// Dynamically import Chart.js (cannot be imported at top level due to SSR)
+		const module = await import('chart.js/auto');
+		ChartJS = module.default;
+
 		loadDates();
 		// Re-render charts when dark mode toggles
 		themeObserver = new MutationObserver(() => {

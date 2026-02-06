@@ -214,7 +214,10 @@ async def fetch_flickr_image(sci_name: str, settings: Settings) -> Optional[Bird
 
 async def fetch_wikipedia_image(sci_name: str) -> Optional[BirdImage]:
     """Fetch bird image from Wikipedia API."""
-    async with httpx.AsyncClient() as client:
+    headers = {
+        "User-Agent": "BirdNET-Pi/1.0 (https://github.com/tphakala/BirdNET-Pi; bird detection project)",
+    }
+    async with httpx.AsyncClient(headers=headers) as client:
         # Use Wikipedia REST API to get page summary
         url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{sci_name.replace(' ', '_')}"
         
