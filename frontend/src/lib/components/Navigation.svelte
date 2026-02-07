@@ -51,13 +51,18 @@
 </script>
 
 <!-- Desktop Navigation -->
-<nav class="hidden md:flex fixed top-0 left-0 right-0 h-16 bg-primary-600 dark:bg-dark-nav shadow-lg z-30">
-	<div class="container mx-auto px-4 flex items-center justify-between">
+<nav class="hidden md:flex fixed top-0 left-0 right-0 h-16 shadow-lg z-30 overflow-hidden">
+	<div class="absolute inset-0 bg-gradient-to-r from-primary-700 via-primary-700 to-primary-900 dark:from-dark-nav dark:via-dark-nav dark:to-black pointer-events-none"></div>
+	<img
+		src="/bnp.png"
+		alt=""
+		aria-hidden="true"
+		class="hidden lg:block absolute top-0 right-0 h-full w-80 object-cover object-left opacity-15 pointer-events-none select-none"
+	/>
+	<div class="relative container mx-auto px-4 flex items-center justify-between">
 		<!-- Logo -->
 		<a href="/" class="flex items-center gap-3 text-white">
-			<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-				<path d="M12 2C7.58 2 4 5.58 4 10c0 3.31 2.69 6 6 6h1v4l3-3 3 3v-4h1c3.31 0 6-2.69 6-6 0-4.42-3.58-8-8-8zm-2 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm4 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
-			</svg>
+			<img src="/bird.png" alt="BirdNET-Pi logo" class="w-8 h-8 rounded-md object-cover ring-1 ring-white/30" />
 			<span class="text-xl font-bold">BirdNET-Pi</span>
 		</a>
 
@@ -97,12 +102,16 @@
 </nav>
 
 <!-- Mobile Navigation -->
-<nav class="md:hidden fixed top-0 left-0 right-0 h-14 bg-primary-600 dark:bg-dark-nav shadow-lg z-30">
-	<div class="h-full px-4 flex items-center justify-between">
+<nav class="md:hidden fixed top-0 left-0 right-0 h-14 bg-primary-700 dark:bg-dark-nav shadow-lg z-30 overflow-hidden">
+	<img
+		src="/bnp.png"
+		alt=""
+		aria-hidden="true"
+		class="absolute top-0 right-0 h-full w-36 object-cover object-left opacity-20 pointer-events-none select-none"
+	/>
+	<div class="relative h-full px-4 flex items-center justify-between">
 		<a href="/" class="flex items-center gap-2 text-white">
-			<svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
-				<path d="M12 2C7.58 2 4 5.58 4 10c0 3.31 2.69 6 6 6h1v4l3-3 3 3v-4h1c3.31 0 6-2.69 6-6 0-4.42-3.58-8-8-8zm-2 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm4 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
-			</svg>
+			<img src="/bird.png" alt="BirdNET-Pi logo" class="w-7 h-7 rounded-md object-cover ring-1 ring-white/30" />
 			<span class="text-lg font-bold">BirdNET-Pi</span>
 		</a>
 
