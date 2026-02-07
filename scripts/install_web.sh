@@ -137,10 +137,24 @@ update_caddy_config() {
     if [ -n "${CADDY_PWD}" ]; then
         HASHWORD=$(caddy hash-password --plaintext "${CADDY_PWD}")
         AUTH_BLOCK="
+  # Legacy parity: protect stream and shell/log access paths with HTTP basic auth
+  basicauth /stream* {
+    birdnet ${HASHWORD}
+  }
+  basicauth /log* {
+    birdnet ${HASHWORD}
+  }
+  basicauth /terminal* {
+    birdnet ${HASHWORD}
+  }
   basicauth /api/config* {
     birdnet ${HASHWORD}
   }
-  basicauth /api/system* {
+  @protected_system {
+    path /api/system*
+    not path /api/system/public-status*
+  }
+  basicauth @protected_system {
     birdnet ${HASHWORD}
   }
   basicauth /settings* {
@@ -171,7 +185,7 @@ http:// ${BIRDNETPI_URL:-} {
     
     # Log viewer (gotty)
     handle /log* {
-        reverse_proxy localhost:8080
+        reverse_proxy localhost:8081
     }
     
     # Terminal (gotty)  
@@ -216,6 +230,47 @@ disable_php_services() {
     echo_info "PHP services disabled"
 }
 
+resolve_port_conflicts() {
+    echo_step "Checking for service port conflicts..."
+
+    # Legacy installs may have birdnet_log bound to 8080, which conflicts with birdnet-web.
+    if sudo systemctl is-enabled birdnet_log &>/dev/null || sudo systemctl is-active birdnet_log &>/dev/null; then
+        if sudo systemctl cat birdnet_log 2>/dev/null | grep -q -- "-p 8080"; then
+            echo_warn "Detected legacy birdnet_log on port 8080; migrating it to 8081."
+            unit_path=$(sudo systemctl show -p FragmentPath --value birdnet_log 2>/dev/null || true)
+            if [ -n "$unit_path" ] && [ -f "$unit_path" ]; then
+                sudo sed -i 's/-p 8080/-p 8081/g' "$unit_path"
+                sudo systemctl daemon-reload
+                sudo systemctl enable birdnet_log || true
+                sudo systemctl restart birdnet_log || true
+            else
+                echo_warn "Could not locate birdnet_log unit file; disabling service to prevent conflict."
+                sudo systemctl stop birdnet_log || true
+                sudo systemctl disable birdnet_log || true
+            fi
+        else
+            # Ensure logs service is running if configured on a non-conflicting port.
+            sudo systemctl restart birdnet_log || true
+        fi
+    else
+        # If service exists but is disabled, leave as-is.
+        if sudo systemctl list-unit-files | grep -q "^birdnet_log.service"; then
+            :
+        else
+            # No legacy service found; nothing to resolve.
+            :
+        fi
+    fi
+
+    # Explicitly guard against any other listener on 8080 before starting birdnet-web.
+    if command -v lsof >/dev/null 2>&1; then
+        if sudo lsof -nP -iTCP:8080 -sTCP:LISTEN 2>/dev/null | grep -v "uvicorn" | grep -q .; then
+            echo_warn "A process is already listening on port 8080; attempting to continue may fail."
+            sudo lsof -nP -iTCP:8080 -sTCP:LISTEN 2>/dev/null || true
+        fi
+    fi
+}
+
 verify_directories() {
     echo_step "Verifying directory structure..."
     
@@ -230,12 +285,12 @@ verify_directories() {
     mkdir -p "${EXTRACTED}/By_Date" 2>/dev/null || true
     mkdir -p "${EXTRACTED}/Charts" 2>/dev/null || true
     
-    # Verify database exists
+    # Verify database exists; fail safe if missing to avoid silent empty migrations
     if [ ! -f "$BIRDNET_DIR/scripts/birds.db" ]; then
-        echo_warn "Database not found, creating..."
-        if [ -f "$BIRDNET_DIR/scripts/createdb.sh" ]; then
-            cd "$BIRDNET_DIR/scripts" && ./createdb.sh
-        fi
+        echo_error "Database not found at $BIRDNET_DIR/scripts/birds.db"
+        echo_error "Aborting to avoid an accidental empty migration."
+        echo_error "Restore birds.db from backup, or run createdb.sh intentionally if this is a fresh system."
+        return 1
     fi
     
     echo_info "Directory structure verified"
@@ -390,6 +445,7 @@ main() {
             build_frontend
             install_systemd_service
             disable_php_services
+            resolve_port_conflicts
             update_caddy_config
             start_services
             ;;
@@ -401,6 +457,7 @@ main() {
             install_backend_deps
             build_frontend
             install_systemd_service
+            resolve_port_conflicts
             update_caddy_config
             start_services
             ;;

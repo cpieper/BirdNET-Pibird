@@ -36,12 +36,12 @@
 
 	# Log viewer (gotty)
 	handle /log* {
-		reverse_proxy localhost:8888
+		reverse_proxy localhost:8081
 	}
 
 	# Terminal (gotty)
 	handle /terminal* {
-		reverse_proxy localhost:8889
+		reverse_proxy localhost:8888
 	}
 
 	# Streamlit stats

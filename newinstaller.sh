@@ -74,6 +74,12 @@ fi
 echo "Cloning ${REPO_URL} (branch: ${BRANCH})..."
 git clone -b "${BRANCH}" --depth=1 "${REPO_URL}" "${INSTALL_DIR}" &&
 
+# Legacy installer scripts assume ~/BirdNET-Pi. Keep that path valid.
+if [ "${INSTALL_DIR}" != "${HOME}/BirdNET-Pi" ]; then
+  echo "Linking ${HOME}/BirdNET-Pi -> ${INSTALL_DIR} for installer compatibility..."
+  ln -sfn "${INSTALL_DIR}" "${HOME}/BirdNET-Pi"
+fi
+
 # Set SKIP_PHP to use new web interface instead of PHP
 export SKIP_PHP=1
 
