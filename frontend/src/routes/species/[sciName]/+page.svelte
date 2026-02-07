@@ -1,27 +1,18 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { species as speciesApi, type Detection } from '$lib/api';
+	import { species as speciesApi, type Detection, type SpeciesStats } from '$lib/api';
 	import { DetectionCard, SpeciesImage } from '$lib/components';
 	import { toasts } from '$lib/stores';
 
-	$: sciName = decodeURIComponent($page.params.sciName);
+	$: sciName = decodeURIComponent($page.params.sciName ?? '');
 
-	let stats: {
-		sci_name: string;
-		com_name: string;
-		total_detections: number;
-		days_detected: number;
-		first_detection: string;
-		last_detection: string;
-		avg_confidence: number;
-		max_confidence: number;
-	} | null = null;
+	let stats: SpeciesStats | null = null;
 	let detectionsList: Detection[] = [];
 	let chartData: { date: string; count: number }[] = [];
 	let loading = true;
 
 	async function loadData() {
+		if (!sciName) return;
 		loading = true;
 		try {
 			const [statsData, detectionsData, chartResult] = await Promise.all([
@@ -45,7 +36,9 @@
 		return `${(confidence * 100).toFixed(0)}%`;
 	}
 
-	onMount(loadData);
+	$: if (sciName) {
+		void loadData();
+	}
 </script>
 
 <svelte:head>

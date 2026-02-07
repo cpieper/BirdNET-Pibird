@@ -6,7 +6,8 @@
 
 	let publicStatus: PublicSystemStatus | null = null;
 	let loading = true;
-	let statusOnline = true;
+	let statusState: 'online' | 'degraded' | 'offline' = 'online';
+	let statusText = 'Online';
 	let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
 	let adminVerified = false;
@@ -26,10 +27,12 @@
 	async function loadStatus() {
 		try {
 			publicStatus = await systemApi.publicStatus();
-			statusOnline = true;
+			statusState = publicStatus.status === 'degraded' ? 'degraded' : 'online';
+			statusText = statusState === 'degraded' ? 'Degraded' : 'Online';
 		} catch (error) {
 			console.error('Failed to load public status:', error);
-			statusOnline = false;
+			statusState = 'offline';
+			statusText = 'Offline';
 			publicStatus = null;
 		} finally {
 			loading = false;
@@ -124,8 +127,13 @@
 			<div class="card p-4">
 				<p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Server</p>
 				<div class="flex items-center gap-2">
-					<span class="w-3 h-3 rounded-full" class:bg-green-500={statusOnline} class:bg-red-500={!statusOnline} />
-					<p class="font-semibold text-gray-900 dark:text-gray-100">{statusOnline ? 'Online' : 'Offline'}</p>
+					<span
+						class="w-3 h-3 rounded-full"
+						class:bg-green-500={statusState === 'online'}
+						class:bg-amber-500={statusState === 'degraded'}
+						class:bg-red-500={statusState === 'offline'}
+					/>
+					<p class="font-semibold text-gray-900 dark:text-gray-100">{statusText}</p>
 				</div>
 			</div>
 			<div class="card p-4">
@@ -143,6 +151,17 @@
 			<p class="mt-1 text-gray-900 dark:text-gray-100">{formatTimestamp(publicStatus?.last_detection || null)}</p>
 			<p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Last checked</p>
 			<p class="mt-1 text-gray-900 dark:text-gray-100">{formatTimestamp(publicStatus?.checked_at || null)}</p>
+
+			{#if publicStatus?.service_summary && publicStatus.status === 'degraded'}
+				<p class="mt-4 text-sm text-amber-600 dark:text-amber-400">
+					Core services active: {publicStatus.service_summary.core_active}/{publicStatus.service_summary.core_total}
+				</p>
+				{#if publicStatus.service_summary.inactive_core_services.length > 0}
+					<p class="mt-1 text-sm text-amber-600 dark:text-amber-400">
+						Inactive: {publicStatus.service_summary.inactive_core_services.join(', ')}
+					</p>
+				{/if}
+			{/if}
 		</div>
 
 		{#if adminVerified && showAdminLinks}
@@ -151,6 +170,8 @@
 				<div class="flex flex-wrap gap-3">
 					<a href="/settings" class="btn-primary">Settings</a>
 					<a href="/settings/system" class="btn-secondary">System</a>
+					<a href="/live-logs" class="btn-secondary">Live Logs</a>
+					<a href="/species/manage" class="btn-secondary">Species Lists</a>
 				</div>
 			</div>
 		{/if}

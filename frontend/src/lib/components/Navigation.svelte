@@ -13,7 +13,7 @@
 		{ href: '/species', label: 'Species', icon: 'bird' },
 	];
 
-	let serverLive = true;
+	let statusState: 'online' | 'degraded' | 'offline' = 'online';
 	let statusText = 'Checking';
 	let statusTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -29,11 +29,11 @@
 
 	async function refreshStatus() {
 		try {
-			await systemApi.publicStatus();
-			serverLive = true;
-			statusText = 'Online';
+			const status = await systemApi.publicStatus();
+			statusState = status.status === 'degraded' ? 'degraded' : 'online';
+			statusText = statusState === 'degraded' ? 'Degraded' : 'Online';
 		} catch {
-			serverLive = false;
+			statusState = 'offline';
 			statusText = 'Offline';
 		}
 	}
@@ -82,7 +82,12 @@
 				aria-label="Server status"
 				title={`Server status: ${statusText}`}
 			>
-				<span class="w-2.5 h-2.5 rounded-full" class:bg-green-400={serverLive} class:bg-red-400={!serverLive} />
+				<span
+					class="w-2.5 h-2.5 rounded-full"
+					class:bg-green-400={statusState === 'online'}
+					class:bg-amber-400={statusState === 'degraded'}
+					class:bg-red-400={statusState === 'offline'}
+				/>
 				<span>Status</span>
 			</a>
 
@@ -154,7 +159,12 @@
 					? 'bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200'
 					: 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card'}"
 			>
-				<span class="w-2.5 h-2.5 rounded-full" class:bg-green-500={serverLive} class:bg-red-500={!serverLive} />
+				<span
+					class="w-2.5 h-2.5 rounded-full"
+					class:bg-green-500={statusState === 'online'}
+					class:bg-amber-500={statusState === 'degraded'}
+					class:bg-red-500={statusState === 'offline'}
+				/>
 				<span>Status ({statusText})</span>
 			</a>
 		</div>

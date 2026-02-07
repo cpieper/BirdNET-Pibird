@@ -89,18 +89,18 @@ export const species = {
 		if (params?.limit) searchParams.set('limit', String(params.limit));
 		if (params?.offset) searchParams.set('offset', String(params.offset));
 		const query = searchParams.toString();
-		return request(`/species/${encodeURIComponent(sciName)}/detections${query ? `?${query}` : ''}`);
+		return request<SpeciesDetectionsResponse>(`/species/${encodeURIComponent(sciName)}/detections${query ? `?${query}` : ''}`);
 	},
 
 	chartData: (sciName: string, days = 7) =>
 		request<SpeciesChartData>(`/species/${encodeURIComponent(sciName)}/chart-data?days=${days}`),
 
-	stats: (sciName: string) => request(`/species/${encodeURIComponent(sciName)}/stats`),
+	stats: (sciName: string) => request<SpeciesStats>(`/species/${encodeURIComponent(sciName)}/stats`),
 
 	delete: (sciName: string, auth: { username: string; password: string }) =>
 		request(`/species/${encodeURIComponent(sciName)}`, { method: 'DELETE', auth }),
 
-	getLists: (sciName: string) => request(`/species/${encodeURIComponent(sciName)}/lists`),
+	getLists: (sciName: string) => request<SpeciesListMembership>(`/species/${encodeURIComponent(sciName)}/lists`),
 };
 
 // Species lists API
@@ -251,6 +251,30 @@ export interface SpeciesChartData {
 	data: { date: string; count: number }[];
 }
 
+export interface SpeciesStats {
+	sci_name: string;
+	com_name: string;
+	total_detections: number;
+	days_detected: number;
+	first_detection: string;
+	last_detection: string;
+	avg_confidence: number;
+	max_confidence: number;
+}
+
+export interface SpeciesDetectionsResponse {
+	species: string;
+	detections: Detection[];
+	total: number;
+	limit: number;
+	offset: number;
+}
+
+export interface SpeciesListMembership {
+	species: string;
+	lists: Record<'include' | 'exclude' | 'whitelist' | 'confirmed', boolean>;
+}
+
 export interface Config {
 	site_name: string;
 	latitude: number;
@@ -286,6 +310,11 @@ export interface PublicSystemStatus {
 	uptime: string | null;
 	last_detection: string | null;
 	version: string;
+	service_summary?: {
+		core_total: number;
+		core_active: number;
+		inactive_core_services: string[];
+	};
 }
 
 export interface SpeciesHourly {

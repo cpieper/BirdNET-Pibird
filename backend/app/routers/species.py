@@ -20,6 +20,11 @@ from ..models.schemas import SpeciesSummary, SpeciesList, SpeciesListResponse, S
 router = APIRouter()
 
 
+def normalize_species_key(species_entry: str) -> str:
+    """Normalize species list entries to scientific name only."""
+    return species_entry.split('_', 1)[0].strip()
+
+
 @router.get("/species", response_model=SpeciesList)
 async def list_species(
     sort: str = Query("count", pattern="^(count|confidence|date|name)$"),
@@ -241,8 +246,10 @@ async def get_species_list(
         species = read_species_list(list_type)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    normalized_species = sorted(set(normalize_species_key(item) for item in species if item.strip()))
     
-    return SpeciesListResponse(list_type=list_type, species=species)
+    return SpeciesListResponse(list_type=list_type, species=normalized_species)
 
 
 @router.post("/species-lists/{list_type}")
@@ -263,20 +270,27 @@ async def update_species_list(
         current_list = read_species_list(list_type)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+    normalized_species = normalize_species_key(update.species)
+    current_keys = {normalize_species_key(item) for item in current_list if item.strip()}
+
     if update.action == "add":
-        if update.species not in current_list:
-            current_list.append(update.species)
-            current_list.sort()
+        if normalized_species not in current_keys:
+            current_list.append(normalized_species)
     elif update.action == "remove":
-        if update.species in current_list:
-            current_list.remove(update.species)
-    
+        current_list = [
+            item for item in current_list
+            if normalize_species_key(item) != normalized_species
+        ]
+
+    current_list = sorted(
+        {normalize_species_key(item) for item in current_list if item.strip()}
+    )
     write_species_list(list_type, current_list)
     
     return {
         "message": f"Species {update.action}ed {'to' if update.action == 'add' else 'from'} {list_type} list",
-        "species": update.species,
+        "species": normalized_species,
         "list_type": list_type,
     }
 
@@ -289,7 +303,10 @@ async def get_species_list_membership(
     membership = {}
     for list_type in ['include', 'exclude', 'whitelist', 'confirmed']:
         species_list = read_species_list(list_type)
-        membership[list_type] = sci_name in species_list
+        membership[list_type] = any(
+            normalize_species_key(item) == sci_name
+            for item in species_list
+        )
     
     return {
         "species": sci_name,

@@ -25,6 +25,13 @@ SERVICES = [
     'extraction',
 ]
 
+# Services that must be running for healthy detection operation.
+CORE_SERVICES = [
+    'birdnet_analysis',
+    'birdnet_recording',
+    'extraction',
+]
+
 
 def format_uptime() -> Optional[str]:
     """Read and format uptime from /proc/uptime."""
@@ -100,12 +107,21 @@ async def get_public_status(
     if last_row:
         last_detection = f"{last_row[0]} {last_row[1]}"
 
+    core_service_statuses = [get_service_status(name) for name in CORE_SERVICES]
+    inactive_core_services = [service.name for service in core_service_statuses if not service.active]
+    status = "online" if len(inactive_core_services) == 0 else "degraded"
+
     return {
-        "status": "online",
+        "status": status,
         "checked_at": datetime.now().isoformat(timespec="seconds"),
         "uptime": format_uptime(),
         "last_detection": last_detection,
         "version": read_version(settings),
+        "service_summary": {
+            "core_total": len(CORE_SERVICES),
+            "core_active": len(CORE_SERVICES) - len(inactive_core_services),
+            "inactive_core_services": inactive_core_services,
+        },
     }
 
 
