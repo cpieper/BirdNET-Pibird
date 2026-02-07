@@ -14,6 +14,7 @@
 	let highPassHz = 20;
 	let gain = 1;
 	let volume = 1;
+	let showControls = false;
 
 	let audioContext: AudioContext | null = null;
 	let sourceNode: MediaElementAudioSourceNode | null = null;
@@ -159,41 +160,52 @@
 	preload="metadata"
 />
 
-	{#if compact}
+{#if compact}
 	<div class="space-y-2">
-		<button
-			on:click={togglePlay}
-			class="p-2 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors"
-			aria-label={isPlaying ? 'Pause' : 'Play'}
-		>
-			{#if isPlaying}
-				<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-					<path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-				</svg>
-			{:else}
-				<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-					<path d="M8 5v14l11-7z" />
-				</svg>
-			{/if}
-		</button>
-		<div class="grid grid-cols-2 gap-2 text-xs">
-			<label class="text-gray-600 dark:text-gray-400">
-				Volume
-				<input class="w-full" type="range" min="0" max="1" step="0.01" bind:value={volume} />
-			</label>
-			<label class="text-gray-600 dark:text-gray-400">
-				Gain
-				<input class="w-full" type="range" min="0" max="3" step="0.01" bind:value={gain} />
-			</label>
-			<label class="text-gray-600 dark:text-gray-400">
-				High-pass
-				<input class="w-full" type="range" min="20" max="5000" step="10" bind:value={highPassHz} />
-			</label>
-			<label class="text-gray-600 dark:text-gray-400">
-				Low-pass
-				<input class="w-full" type="range" min="500" max="20000" step="50" bind:value={lowPassHz} />
-			</label>
+		<div class="flex items-center gap-2">
+			<button
+				on:click={togglePlay}
+				class="p-2 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors"
+				aria-label={isPlaying ? 'Pause' : 'Play'}
+			>
+				{#if isPlaying}
+					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+						<path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+					</svg>
+				{:else}
+					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+						<path d="M8 5v14l11-7z" />
+					</svg>
+				{/if}
+			</button>
+			<button
+				on:click={() => (showControls = !showControls)}
+				class="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-dark-border text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-dark-hover"
+				aria-expanded={showControls}
+			>
+				{showControls ? 'Hide audio controls' : 'Show audio controls'}
+			</button>
 		</div>
+		{#if showControls}
+			<div class="grid grid-cols-2 gap-2 text-xs">
+				<label class="text-gray-600 dark:text-gray-400">
+					Volume
+					<input class="w-full" type="range" min="0" max="1" step="0.01" bind:value={volume} />
+				</label>
+				<label class="text-gray-600 dark:text-gray-400">
+					Gain
+					<input class="w-full" type="range" min="0" max="3" step="0.01" bind:value={gain} />
+				</label>
+				<label class="text-gray-600 dark:text-gray-400">
+					High-pass
+					<input class="w-full" type="range" min="20" max="5000" step="10" bind:value={highPassHz} />
+				</label>
+				<label class="text-gray-600 dark:text-gray-400">
+					Low-pass
+					<input class="w-full" type="range" min="500" max="20000" step="50" bind:value={lowPassHz} />
+				</label>
+			</div>
+		{/if}
 	</div>
 {:else}
 	<div class="space-y-3 p-3 bg-gray-100 dark:bg-dark-card rounded-lg">
@@ -235,23 +247,35 @@
 			</div>
 		</div>
 
-		<div class="grid sm:grid-cols-2 gap-2 text-xs">
-			<label class="text-gray-600 dark:text-gray-400">
-				Volume ({Math.round(volume * 100)}%)
-				<input class="w-full" type="range" min="0" max="1" step="0.01" bind:value={volume} />
-			</label>
-			<label class="text-gray-600 dark:text-gray-400">
-				Gain ({gain.toFixed(2)}x)
-				<input class="w-full" type="range" min="0" max="3" step="0.01" bind:value={gain} />
-			</label>
-			<label class="text-gray-600 dark:text-gray-400">
-				High-pass ({Math.round(highPassHz)} Hz)
-				<input class="w-full" type="range" min="20" max="5000" step="10" bind:value={highPassHz} />
-			</label>
-			<label class="text-gray-600 dark:text-gray-400">
-				Low-pass ({Math.round(lowPassHz)} Hz)
-				<input class="w-full" type="range" min="500" max="20000" step="50" bind:value={lowPassHz} />
-			</label>
+		<div>
+			<button
+				on:click={() => (showControls = !showControls)}
+				class="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-dark-border text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-dark-hover"
+				aria-expanded={showControls}
+			>
+				{showControls ? 'Hide audio controls' : 'Show audio controls'}
+			</button>
 		</div>
+
+		{#if showControls}
+			<div class="grid sm:grid-cols-2 gap-2 text-xs">
+				<label class="text-gray-600 dark:text-gray-400">
+					Volume ({Math.round(volume * 100)}%)
+					<input class="w-full" type="range" min="0" max="1" step="0.01" bind:value={volume} />
+				</label>
+				<label class="text-gray-600 dark:text-gray-400">
+					Gain ({gain.toFixed(2)}x)
+					<input class="w-full" type="range" min="0" max="3" step="0.01" bind:value={gain} />
+				</label>
+				<label class="text-gray-600 dark:text-gray-400">
+					High-pass ({Math.round(highPassHz)} Hz)
+					<input class="w-full" type="range" min="20" max="5000" step="10" bind:value={highPassHz} />
+				</label>
+				<label class="text-gray-600 dark:text-gray-400">
+					Low-pass ({Math.round(lowPassHz)} Hz)
+					<input class="w-full" type="range" min="500" max="20000" step="50" bind:value={lowPassHz} />
+				</label>
+			</div>
+		{/if}
 	</div>
 {/if}

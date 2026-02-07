@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { system as systemApi } from '$lib/api';
 	import { page } from '$app/stores';
-	import { theme, isMobileMenuOpen, auth } from '$lib/stores';
+	import { isMobileMenuOpen } from '$lib/stores';
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	const navItems = [
@@ -11,10 +13,9 @@
 		{ href: '/species', label: 'Species', icon: 'bird' },
 	];
 
-	const settingsItems = [
-		{ href: '/settings', label: 'Settings', icon: 'settings' },
-		{ href: '/settings/system', label: 'System', icon: 'server' },
-	];
+	let serverLive = true;
+	let statusText = 'Checking';
+	let statusTimer: ReturnType<typeof setInterval> | undefined;
 
 	function toggleMobileMenu() {
 		isMobileMenuOpen.update((open) => !open);
@@ -25,6 +26,28 @@
 	}
 
 	$: currentPath = $page.url.pathname;
+
+	async function refreshStatus() {
+		try {
+			await systemApi.publicStatus();
+			serverLive = true;
+			statusText = 'Online';
+		} catch {
+			serverLive = false;
+			statusText = 'Offline';
+		}
+	}
+
+	onMount(() => {
+		void refreshStatus();
+		statusTimer = setInterval(() => {
+			void refreshStatus();
+		}, 30000);
+
+		return () => {
+			if (statusTimer) clearInterval(statusTimer);
+		};
+	});
 </script>
 
 <!-- Desktop Navigation -->
@@ -51,22 +74,17 @@
 				</a>
 			{/each}
 
-			<!-- Settings Dropdown -->
-			<div class="relative group">
-				<button class="px-4 py-2 rounded-lg text-white/90 hover:text-white hover:bg-white/10 transition-colors">
-					Settings
-				</button>
-				<div class="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-dark-card rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-					{#each settingsItems as item}
-						<a
-							href={item.href}
-							class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-hover first:rounded-t-lg last:rounded-b-lg"
-						>
-							{item.label}
-						</a>
-					{/each}
-				</div>
-			</div>
+			<a
+				href="/status"
+				class="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 {currentPath === '/status'
+					? 'bg-white/20 text-white'
+					: 'text-white/90 hover:text-white hover:bg-white/10'}"
+				aria-label="Server status"
+				title={`Server status: ${statusText}`}
+			>
+				<span class="w-2.5 h-2.5 rounded-full" class:bg-green-400={serverLive} class:bg-red-400={!serverLive} />
+				<span>Status</span>
+			</a>
 
 			<!-- Theme Toggle -->
 			<ThemeToggle />
@@ -129,17 +147,16 @@
 
 			<div class="border-t border-gray-200 dark:border-dark-border my-4" />
 
-			{#each settingsItems as item}
-				<a
-					href={item.href}
-					on:click={closeMobileMenu}
-					class="block px-4 py-3 rounded-lg {currentPath === item.href
-						? 'bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200'
-						: 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card'}"
-				>
-					{item.label}
-				</a>
-			{/each}
+			<a
+				href="/status"
+				on:click={closeMobileMenu}
+				class="flex items-center gap-2 px-4 py-3 rounded-lg {currentPath === '/status'
+					? 'bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200'
+					: 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card'}"
+			>
+				<span class="w-2.5 h-2.5 rounded-full" class:bg-green-500={serverLive} class:bg-red-500={!serverLive} />
+				<span>Status ({statusText})</span>
+			</a>
 		</div>
 	</div>
 {/if}

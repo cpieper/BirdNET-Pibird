@@ -152,6 +152,9 @@ export const config = {
 
 // System API
 export const system = {
+	publicStatus: () =>
+		request<PublicSystemStatus>('/system/public-status'),
+
 	info: (auth: { username: string; password: string }) => request<SystemInfo>('/system/info', { auth }),
 
 	services: (auth: { username: string; password: string }) => request<{ services: ServiceStatus[] }>('/system/services', { auth }),
@@ -275,6 +278,14 @@ export interface SystemInfo {
 	uptime: string | null;
 	disk_usage: { total: string; used: string; available: string; percent: string } | null;
 	services: ServiceStatus[];
+}
+
+export interface PublicSystemStatus {
+	status: 'online' | 'offline' | 'degraded' | string;
+	checked_at: string;
+	uptime: string | null;
+	last_detection: string | null;
+	version: string;
 }
 
 export interface SpeciesHourly {

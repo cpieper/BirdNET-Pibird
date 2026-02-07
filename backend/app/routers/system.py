@@ -1,13 +1,15 @@
 """System control API endpoints."""
 import os
+import sqlite3
 import subprocess
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 
 from ..config import get_settings, Settings
-from ..dependencies import verify_credentials
+from ..dependencies import verify_credentials, get_db
 from ..models.schemas import ServiceStatus, SystemInfo
 
 router = APIRouter()
@@ -22,6 +24,29 @@ SERVICES = [
     'icecast2',
     'extraction',
 ]
+
+
+def format_uptime() -> Optional[str]:
+    """Read and format uptime from /proc/uptime."""
+    try:
+        with open('/proc/uptime') as f:
+            uptime_seconds = float(f.read().split()[0])
+            days = int(uptime_seconds // 86400)
+            hours = int((uptime_seconds % 86400) // 3600)
+            minutes = int((uptime_seconds % 3600) // 60)
+            return f"{days}d {hours}h {minutes}m"
+    except Exception:
+        return None
+
+
+def read_version(settings: Settings) -> str:
+    """Read app version from version.md."""
+    version = "unknown"
+    version_path = os.path.join(settings.base_path, 'version.md')
+    if os.path.exists(version_path):
+        with open(version_path) as f:
+            version = f.read().strip()
+    return version
 
 
 def get_service_status(service_name: str) -> ServiceStatus:
@@ -59,6 +84,29 @@ def get_service_status(service_name: str) -> ServiceStatus:
             enabled=False,
             status=f"error: {str(e)}",
         )
+
+
+@router.get("/system/public-status")
+async def get_public_status(
+    db: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    """Public status summary with no sensitive system details."""
+    last_row = db.execute(
+        "SELECT Date, Time FROM detections ORDER BY Date DESC, Time DESC LIMIT 1"
+    ).fetchone()
+
+    last_detection = None
+    if last_row:
+        last_detection = f"{last_row[0]} {last_row[1]}"
+
+    return {
+        "status": "online",
+        "checked_at": datetime.now().isoformat(timespec="seconds"),
+        "uptime": format_uptime(),
+        "last_detection": last_detection,
+        "version": read_version(settings),
+    }
 
 
 @router.get("/system/services")
@@ -280,12 +328,7 @@ async def get_system_info(
     
     Requires authentication.
     """
-    # Read version
-    version = "unknown"
-    version_path = os.path.join(settings.base_path, 'version.md')
-    if os.path.exists(version_path):
-        with open(version_path) as f:
-            version = f.read().strip()
+    version = read_version(settings)
     
     # Get disk usage
     disk_usage = None
@@ -309,17 +352,7 @@ async def get_system_info(
     except Exception:
         pass
     
-    # Get uptime
-    uptime = None
-    try:
-        with open('/proc/uptime') as f:
-            uptime_seconds = float(f.read().split()[0])
-            days = int(uptime_seconds // 86400)
-            hours = int((uptime_seconds % 86400) // 3600)
-            minutes = int((uptime_seconds % 3600) // 60)
-            uptime = f"{days}d {hours}h {minutes}m"
-    except Exception:
-        pass
+    uptime = format_uptime()
     
     # Get service statuses
     services = [get_service_status(name) for name in SERVICES]
