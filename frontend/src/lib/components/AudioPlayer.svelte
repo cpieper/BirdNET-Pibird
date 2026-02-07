@@ -157,8 +157,7 @@
 	on:ended={handleEnded}
 	on:play={handlePlay}
 	on:pause={handlePause}
-	preload="metadata"
-/>
+	preload="metadata"></audio>
 
 {#if compact}
 	<div class="space-y-2">
@@ -239,8 +238,7 @@
 					>
 						<div
 							class="h-full bg-primary-500 transition-all"
-							style="width: {duration ? (currentTime / duration) * 100 : 0}%"
-						/>
+							style="width: {duration ? (currentTime / duration) * 100 : 0}%"></div>
 					</button>
 					<span class="text-xs text-gray-500 dark:text-gray-400 w-10 text-right">{formatTime(duration)}</span>
 				</div>

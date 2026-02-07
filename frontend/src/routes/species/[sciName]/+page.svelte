@@ -53,7 +53,7 @@
 
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
-			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else if stats}
 		<!-- Header -->
@@ -108,8 +108,7 @@
 						<div
 							class="flex-1 bg-primary-500 rounded-t transition-all hover:bg-primary-600"
 							style="height: {height}%"
-							title="{day.date}: {day.count} detections"
-						/>
+							title="{day.date}: {day.count} detections"></div>
 					{/each}
 				</div>
 				<div class="flex justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">

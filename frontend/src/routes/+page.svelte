@@ -60,7 +60,7 @@
 
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
-			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else}
 		<!-- Stats Grid -->
@@ -89,7 +89,7 @@
 
 		<!-- Live indicator -->
 		<div class="flex items-center gap-2 mb-4">
-			<span class="w-3 h-3 bg-green-500 rounded-full pulse-live" />
+			<span class="w-3 h-3 bg-green-500 rounded-full pulse-live"></span>
 			<span class="text-sm text-gray-600 dark:text-gray-400">
 				Live - Auto-refreshing every 30 seconds
 			</span>

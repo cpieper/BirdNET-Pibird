@@ -130,7 +130,7 @@
 
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
-			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else if !$auth.isAuthenticated}
 		<div class="card p-8 text-center">
@@ -181,7 +181,7 @@
 					class="btn-secondary btn-sm"
 				>
 					{#if actionLoading['all']}
-						<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+						<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></span>
 					{/if}
 					Restart All
 				</button>
@@ -193,8 +193,7 @@
 							<span
 								class="w-3 h-3 rounded-full"
 								class:bg-green-500={service.active}
-								class:bg-red-500={!service.active}
-							/>
+								class:bg-red-500={!service.active}></span>
 							<div>
 								<p class="font-medium text-gray-900 dark:text-gray-100">{service.name}</p>
 								<p class="text-sm text-gray-500 dark:text-gray-400">
@@ -266,7 +265,6 @@
 				bind:value={passwordInput}
 				class="input"
 				placeholder="Enter password"
-				autofocus
 			/>
 		</div>
 		<div class="flex justify-end gap-2">

@@ -120,7 +120,7 @@
 
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
-			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else}
 		<div class="grid md:grid-cols-3 gap-4 mb-6">
@@ -131,8 +131,7 @@
 						class="w-3 h-3 rounded-full"
 						class:bg-green-500={statusState === 'online'}
 						class:bg-amber-500={statusState === 'degraded'}
-						class:bg-red-500={statusState === 'offline'}
-					/>
+						class:bg-red-500={statusState === 'offline'}></span>
 					<p class="font-semibold text-gray-900 dark:text-gray-100">{statusText}</p>
 				</div>
 			</div>
@@ -196,7 +195,7 @@
 			</button>
 			<button type="submit" class="btn-primary" disabled={verifyingLogin}>
 				{#if verifyingLogin}
-					<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+					<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></span>
 				{/if}
 				Authenticate
 			</button>

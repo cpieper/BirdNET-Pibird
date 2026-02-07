@@ -115,7 +115,7 @@
 
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
-			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else if !$auth.isAuthenticated}
 		<div class="card p-8 text-center">
@@ -273,7 +273,7 @@
 			<div class="flex justify-end">
 				<button type="submit" disabled={saving} class="btn-primary">
 					{#if saving}
-						<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+						<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></span>
 					{/if}
 					Save Changes
 				</button>
@@ -293,7 +293,6 @@
 				bind:value={passwordInput}
 				class="input"
 				placeholder="Enter password"
-				autofocus
 			/>
 		</div>
 		<div class="flex justify-end gap-2">

@@ -124,7 +124,7 @@
 	<!-- Detections grid -->
 	{#if loading && allDetections.length === 0}
 		<div class="flex items-center justify-center py-12">
-			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else if filteredDetections.length === 0}
 		<div class="card p-8 text-center">
@@ -146,7 +146,7 @@
 					class="btn-secondary"
 				>
 					{#if loading}
-						<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+						<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></span>
 					{/if}
 					Load more
 				</button>

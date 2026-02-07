@@ -30,7 +30,7 @@
 <div class="{sizeClasses[size]} bg-gray-200 dark:bg-dark-card rounded-lg overflow-hidden">
 	{#if loading}
 		<div class="w-full h-full flex items-center justify-center">
-			<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+			<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else if imageData}
 		<img

@@ -413,7 +413,7 @@
 	{#if selectedDate}
 		{#if loading}
 			<div class="flex items-center justify-center py-12">
-				<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+				<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 			</div>
 		{:else if chartData}
 			<!-- Summary stats -->
@@ -451,7 +451,7 @@
 						class="btn-secondary btn-sm"
 					>
 						{#if exportLoading}
-							<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+							<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></span>
 						{/if}
 						Export to eBird
 					</button>
@@ -518,8 +518,7 @@
 											class="w-3 h-3 rounded-full flex-shrink-0 transition-all
 												{selectedSpecies.has(sp.sci_name) ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800' : ''}"
 											style="background-color: {SPECIES_COLORS[i % SPECIES_COLORS.length]};
-												{selectedSpecies.has(sp.sci_name) ? `ring-color: ${SPECIES_COLORS[i % SPECIES_COLORS.length]}` : ''}"
-										/>
+												{selectedSpecies.has(sp.sci_name) ? `ring-color: ${SPECIES_COLORS[i % SPECIES_COLORS.length]}` : ''}"></span>
 										<div class="flex-1 min-w-0 text-left">
 											<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{sp.com_name}</p>
 											<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">{sp.sci_name}</p>

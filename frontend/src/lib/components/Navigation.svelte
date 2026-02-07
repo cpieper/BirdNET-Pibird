@@ -86,8 +86,7 @@
 					class="w-2.5 h-2.5 rounded-full"
 					class:bg-green-400={statusState === 'online'}
 					class:bg-amber-400={statusState === 'degraded'}
-					class:bg-red-400={statusState === 'offline'}
-				/>
+					class:bg-red-400={statusState === 'offline'}></span>
 				<span>Status</span>
 			</a>
 
@@ -134,7 +133,7 @@
 		on:keydown={(e) => e.key === 'Escape' && closeMobileMenu()}
 		role="button"
 		tabindex="0"
-	/>
+	></div>
 
 	<div class="md:hidden fixed top-14 left-0 right-0 bottom-0 bg-white dark:bg-dark-body z-40 overflow-y-auto">
 		<div class="p-4 space-y-2">
@@ -150,7 +149,7 @@
 				</a>
 			{/each}
 
-			<div class="border-t border-gray-200 dark:border-dark-border my-4" />
+			<div class="border-t border-gray-200 dark:border-dark-border my-4"></div>
 
 			<a
 				href="/status"
@@ -163,8 +162,7 @@
 					class="w-2.5 h-2.5 rounded-full"
 					class:bg-green-500={statusState === 'online'}
 					class:bg-amber-500={statusState === 'degraded'}
-					class:bg-red-500={statusState === 'offline'}
-				/>
+					class:bg-red-500={statusState === 'offline'}></span>
 				<span>Status ({statusText})</span>
 			</a>
 		</div>

@@ -198,8 +198,7 @@
 			<textarea
 				class="input md:col-span-3 min-h-[120px]"
 				bind:value={bulkSpecies}
-				placeholder="One scientific name per line"
-			/>
+				placeholder="One scientific name per line"></textarea>
 			<div class="space-y-2">
 				<select class="select w-full" bind:value={quickList}>
 					{#each listTypes as listType}
@@ -219,7 +218,7 @@
 	<div class="card overflow-hidden">
 		{#if loading}
 			<div class="flex items-center justify-center py-12">
-				<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+				<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 			</div>
 		{:else}
 			<div class="overflow-auto max-h-[70vh]">
