@@ -2,9 +2,9 @@
 # Format: key: value
 # This file is machine-read by the API for concise version display.
 
-service_version: 1.0.2-rc2
-git_hash: dc47c1d
-git_branch: temporal-bird-song-experience
+service_version: 1.0.2
+git_hash: 9a2bc78
+git_branch: main
 api_version: 1.0.0
-build_date_utc: 2026-07-20T22:18:06Z
+build_date_utc: 2026-07-20T22:22:05Z
 changelog_file: version.md
