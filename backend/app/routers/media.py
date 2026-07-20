@@ -2,15 +2,26 @@
 import os
 import re
 import sqlite3
+import threading
+import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from ..config import get_settings, Settings
 from ..dependencies import verify_credentials
 
 router = APIRouter()
+
+TEMPORAL_ZOOM_RATES = {
+    "0.85": 0.85,
+    "0.7": 0.7,
+    "0.6": 0.6,
+    "0.5": 0.5,
+}
+TEMPORAL_ZOOM_RENDERS_IN_PROGRESS: set[str] = set()
+TEMPORAL_ZOOM_RENDER_LOCK = threading.Lock()
 
 
 def extract_species_from_filename(filename: str) -> str:
@@ -43,6 +54,132 @@ def validate_path(base: str, *parts: str) -> Path:
     return full_path
 
 
+def media_type_for_path(file_path: Path) -> str:
+    """Return a browser media type for an audio file path."""
+    media_types = {
+        '.wav': 'audio/wav',
+        '.mp3': 'audio/mpeg',
+        '.ogg': 'audio/ogg',
+        '.flac': 'audio/flac',
+    }
+    return media_types.get(file_path.suffix.lower(), 'audio/wav')
+
+
+def normalize_temporal_zoom_rate(rate: str) -> tuple[str, float]:
+    """Validate and normalize an allowed Temporal Zoom rate."""
+    rate_key = rate.strip().rstrip('x')
+    if rate_key not in TEMPORAL_ZOOM_RATES:
+        raise HTTPException(status_code=400, detail="Unsupported Temporal Zoom rate")
+    return rate_key, TEMPORAL_ZOOM_RATES[rate_key]
+
+
+def temporal_zoom_paths(settings: Settings, date: str, filename: str, rate: str) -> tuple[Path, Path, str]:
+    """Return the source and cache paths for a Temporal Zoom render."""
+    rate_key, _ = normalize_temporal_zoom_rate(rate)
+    species_folder = extract_species_from_filename(filename)
+    source_path = validate_path(settings.by_date_dir, date, species_folder, filename)
+
+    if not source_path.exists():
+        raise HTTPException(status_code=404, detail="Source audio file not found")
+
+    output_filename = f"{source_path.stem}-tempo-{rate_key}x.mp3"
+    output_path = validate_path(
+        settings.by_date_dir,
+        'tempo',
+        f"{rate_key}x",
+        date,
+        species_folder,
+        output_filename,
+    )
+    return source_path, output_path, output_filename
+
+
+def render_temporal_zoom_audio(settings: Settings, date: str, filename: str, rate: str) -> tuple[Path, str, bool]:
+    """Create a cached pitch-preserved Temporal Zoom file if it is missing."""
+    import subprocess
+
+    rate_key, tempo_rate = normalize_temporal_zoom_rate(rate)
+    source_path, output_path, output_filename = temporal_zoom_paths(settings, date, filename, rate_key)
+
+    if output_path.exists():
+        return output_path, output_filename, True
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = output_path.with_name(f"{output_path.name}.{os.getpid()}-{uuid.uuid4().hex}.tmp")
+
+    try:
+        try:
+            result = subprocess.run(
+                ['sox', str(source_path), str(tmp_path), 'tempo', str(tempo_rate)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except FileNotFoundError:
+            result = None
+
+        if result is None or result.returncode != 0:
+            try:
+                result = subprocess.run(
+                    [
+                        'ffmpeg',
+                        '-y',
+                        '-i',
+                        str(source_path),
+                        '-vn',
+                        '-filter:a',
+                        f'atempo={tempo_rate}',
+                        str(tmp_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+            except FileNotFoundError:
+                result = None
+
+        if result is None:
+            if tmp_path.exists():
+                tmp_path.unlink()
+            raise HTTPException(
+                status_code=500,
+                detail="Neither sox nor ffmpeg found. Install one of them.",
+            )
+
+        if result.returncode != 0:
+            if tmp_path.exists():
+                tmp_path.unlink()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create Temporal Zoom audio: {result.stderr}",
+            )
+
+        tmp_path.replace(output_path)
+    except subprocess.TimeoutExpired:
+        if tmp_path.exists():
+            tmp_path.unlink()
+        raise HTTPException(status_code=500, detail="Operation timed out")
+
+    return output_path, output_filename, False
+
+
+def queue_temporal_zoom_render(settings: Settings, date: str, filename: str, rate: str) -> None:
+    """Render Temporal Zoom audio in the background, suppressing duplicate work."""
+    _, output_path, _ = temporal_zoom_paths(settings, date, filename, rate)
+    render_key = str(output_path)
+
+    with TEMPORAL_ZOOM_RENDER_LOCK:
+        if render_key in TEMPORAL_ZOOM_RENDERS_IN_PROGRESS:
+            return
+        TEMPORAL_ZOOM_RENDERS_IN_PROGRESS.add(render_key)
+
+    try:
+        render_temporal_zoom_audio(settings, date, filename, rate)
+    finally:
+        with TEMPORAL_ZOOM_RENDER_LOCK:
+            TEMPORAL_ZOOM_RENDERS_IN_PROGRESS.discard(render_key)
+
+
 @router.get("/media/audio/{date}/{species}/{filename}")
 async def get_audio(
     date: str,
@@ -67,21 +204,60 @@ async def get_audio(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Audio file not found")
 
-    # Determine media type based on extension
-    ext = file_path.suffix.lower()
-    media_types = {
-        '.wav': 'audio/wav',
-        '.mp3': 'audio/mpeg',
-        '.ogg': 'audio/ogg',
-        '.flac': 'audio/flac',
-    }
-    media_type = media_types.get(ext, 'audio/wav')
-
     return FileResponse(
         file_path,
-        media_type=media_type,
+        media_type=media_type_for_path(file_path),
         filename=filename,
     )
+
+
+@router.get("/media/tempo/{date}/{species}/{filename}")
+async def get_temporal_zoom_audio(
+    date: str,
+    species: str,
+    filename: str,
+    rate: str = "0.6",
+    settings: Settings = Depends(get_settings),
+):
+    """Serve a pitch-preserved, time-stretched Temporal Zoom audio file.
+
+    Mobile browsers can stutter when applying low playback rates with pitch
+    preservation in real time. This endpoint renders and caches the slower file
+    so playback can run at a normal browser rate.
+    """
+    output_path, output_filename, _ = render_temporal_zoom_audio(settings, date, filename, rate)
+
+    return FileResponse(
+        output_path,
+        media_type="audio/mpeg",
+        filename=output_filename,
+    )
+
+
+@router.get("/media/tempo/prepare/{date}/{species}/{filename}")
+async def prepare_temporal_zoom_audio(
+    date: str,
+    species: str,
+    filename: str,
+    background_tasks: BackgroundTasks,
+    rate: str = "0.6",
+    settings: Settings = Depends(get_settings),
+):
+    """Queue a cached Temporal Zoom render without returning the audio body."""
+    rate_key, _ = normalize_temporal_zoom_rate(rate)
+    _, output_path, _ = temporal_zoom_paths(settings, date, filename, rate_key)
+    is_cached = output_path.exists()
+
+    if not is_cached:
+        background_tasks.add_task(queue_temporal_zoom_render, settings, date, filename, rate_key)
+
+    return {
+        "ready": is_cached,
+        "cached": is_cached,
+        "queued": not is_cached,
+        "rate": rate_key,
+        "filename": output_path.name,
+    }
 
 
 @router.get("/media/spectrogram/{date}/{species}/{filename}")

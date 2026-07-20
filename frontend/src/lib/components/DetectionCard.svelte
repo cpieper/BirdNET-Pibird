@@ -17,12 +17,30 @@ import { goto } from '$app/navigation';
 	export let speciesLinks: SpeciesExternalLinks | null = null;
 	export let allowSpectrogramExpand: boolean = true;
 	export let spectrogramExpandedHeightClass: string = 'h-[68vh] md:h-[72vh]';
+	/** When > 1, shows how many additional detections are grouped into this card. */
+	export let groupedCount: number | null = null;
+	export let groupedCountContext = 'in recent activity';
 	let spectrogramExpanded = false;
+
+	$: additionalDetectionCount =
+		groupedCount != null && groupedCount > 1 ? groupedCount - 1 : 0;
 
 	const dispatch = createEventDispatcher<{ delete: Detection }>();
 
 	$: audioUrl = media.audioUrl(detection.Date, detection.Sci_Name, detection.File_Name);
 	$: spectrogramUrl = media.spectrogramUrl(detection.Date, detection.Sci_Name, detection.File_Name);
+	$: temporalZoomUrls = {
+		'0.85': media.temporalZoomAudioUrl(detection.Date, detection.Sci_Name, detection.File_Name, 0.85),
+		'0.7': media.temporalZoomAudioUrl(detection.Date, detection.Sci_Name, detection.File_Name, 0.7),
+		'0.6': media.temporalZoomAudioUrl(detection.Date, detection.Sci_Name, detection.File_Name, 0.6),
+		'0.5': media.temporalZoomAudioUrl(detection.Date, detection.Sci_Name, detection.File_Name, 0.5),
+	};
+	$: temporalZoomPrepareUrls = {
+		'0.85': media.temporalZoomPrepareUrl(detection.Date, detection.Sci_Name, detection.File_Name, 0.85),
+		'0.7': media.temporalZoomPrepareUrl(detection.Date, detection.Sci_Name, detection.File_Name, 0.7),
+		'0.6': media.temporalZoomPrepareUrl(detection.Date, detection.Sci_Name, detection.File_Name, 0.6),
+		'0.5': media.temporalZoomPrepareUrl(detection.Date, detection.Sci_Name, detection.File_Name, 0.5),
+	};
 
 	function formatTime(time: string): string {
 		return time.slice(0, 5); // HH:MM
@@ -181,6 +199,20 @@ import { goto } from '$app/navigation';
 
 	<!-- Audio Player -->
 	<div class="mt-3">
-		<AudioPlayer src={audioUrl} filename={detection.File_Name} />
+		<AudioPlayer
+			src={audioUrl}
+			filename={detection.File_Name}
+			temporalZoomProminent={spectrogramExpanded}
+			{temporalZoomUrls}
+			{temporalZoomPrepareUrls}
+		/>
 	</div>
+
+	{#if additionalDetectionCount > 0}
+		<p class="mt-3 border-t border-gray-200 pt-3 text-xs text-gray-600 dark:border-dark-border dark:text-gray-400">
+			+{additionalDetectionCount} more {detection.Com_Name}
+			{additionalDetectionCount === 1 ? 'detection' : 'detections'}
+			{groupedCountContext}
+		</p>
+	{/if}
 </div>

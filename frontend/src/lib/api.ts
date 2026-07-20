@@ -185,6 +185,12 @@ export const media = {
 	audioUrl: (date: string, species: string, filename: string) =>
 		`${API_BASE}/media/audio/${date}/${encodeURIComponent(species)}/${encodeURIComponent(filename)}`,
 
+	temporalZoomAudioUrl: (date: string, species: string, filename: string, rate: number) =>
+		`${API_BASE}/media/tempo/${date}/${encodeURIComponent(species)}/${encodeURIComponent(filename)}?rate=${rate}`,
+
+	temporalZoomPrepareUrl: (date: string, species: string, filename: string, rate: number) =>
+		`${API_BASE}/media/tempo/prepare/${date}/${encodeURIComponent(species)}/${encodeURIComponent(filename)}?rate=${rate}`,
+
 	spectrogramUrl: (date: string, species: string, filename: string) =>
 		`${API_BASE}/media/spectrogram/${date}/${encodeURIComponent(species)}/${encodeURIComponent(filename)}`,
 
@@ -339,7 +345,7 @@ export const system = {
 
 // Integrations API
 export const integrations = {
-	image: (sciName: string) => request<BirdImage>(`/image/${encodeURIComponent(sciName)}`),
+	image: (sciName: string) => request<BirdImage | null>(`/image/${encodeURIComponent(sciName)}`),
 
 	blacklistImage: (sciName: string, auth: { username: string; password: string }) =>
 		request(`/image/${encodeURIComponent(sciName)}/blacklist`, { method: 'POST', auth }),

@@ -5,16 +5,41 @@
 	export let src: string;
 	export let filename: string = '';
 	export let compact: boolean = false;
+	export let temporalZoomProminent: boolean = false;
+	export let temporalZoomUrls: Record<string, string> = {};
+	export let temporalZoomPrepareUrls: Record<string, string> = {};
+
+	type PitchPreservingAudio = HTMLAudioElement & {
+		preservesPitch?: boolean;
+		mozPreservesPitch?: boolean;
+		webkitPreservesPitch?: boolean;
+	};
+
+	const temporalZoomOptions = [
+		{ label: 'Human', rate: 1, detail: '1.0x' },
+		{ label: 'Field', rate: 0.85, detail: '0.85x' },
+		{ label: 'Bird detail', rate: 0.7, detail: '0.7x' },
+		{ label: 'Fast bird', rate: 0.6, detail: '0.6x' },
+		{ label: 'Fine', rate: 0.5, detail: '0.5x' },
+	];
+	const temporalZoomReferenceUrl = 'https://pmc.ncbi.nlm.nih.gov/articles/PMC3791410/';
+	const temporalZoomPrewarmOrder = ['0.7', '0.6', '0.85', '0.5'];
 
 	let audio: HTMLAudioElement;
 	let isPlaying = false;
 	let currentTime = 0;
 	let duration = 0;
-	let lowPassHz = 20000;
-	let highPassHz = 20;
-	let gain = 1;
+	let lowPassHz = 12000;
+	let highPassHz = 500;
+	let gain = 1.85;
 	let volume = 1;
 	let showControls = false;
+	let playbackRate = 1;
+	let useRenderedTemporalZoom = false;
+	let renderedTemporalZoomFailures = new Set<string>();
+	let attemptedTemporalZoomPrewarmRates = new Set<string>();
+	let preparedTemporalZoomRates = new Set<string>();
+	let prewarmingTemporalZoom = false;
 
 	let audioContext: AudioContext | null = null;
 	let sourceNode: MediaElementAudioSourceNode | null = null;
@@ -23,7 +48,28 @@
 	let gainNode: GainNode | null = null;
 	let volumeNode: GainNode | null = null;
 
-	$: isCurrentlyPlaying = $currentlyPlaying === src;
+	$: selectedRateKey = String(playbackRate);
+	$: selectedRenderedTemporalZoomUrl = temporalZoomUrls[selectedRateKey];
+	$: canUsePreparedTemporalZoom = !isPlaying || $currentlyPlaying === selectedRenderedTemporalZoomUrl;
+	$: renderedTemporalZoomSrc =
+		useRenderedTemporalZoom &&
+		playbackRate !== 1 &&
+		canUsePreparedTemporalZoom &&
+		preparedTemporalZoomRates.has(selectedRateKey) &&
+		!renderedTemporalZoomFailures.has(selectedRateKey)
+			? selectedRenderedTemporalZoomUrl
+			: undefined;
+	$: effectiveSrc = renderedTemporalZoomSrc || src;
+	$: isUsingRenderedTemporalZoom = Boolean(renderedTemporalZoomSrc);
+	$: useLitePlayback = useRenderedTemporalZoom;
+	$: isCurrentlyPlaying = $currentlyPlaying === effectiveSrc;
+	$: shouldPrewarmTemporalZoom = useRenderedTemporalZoom && (showControls || temporalZoomProminent);
+	$: hasTemporalZoomPrewarmWork = temporalZoomPrewarmOrder.some(
+		(rateKey) => Boolean(temporalZoomPrepareUrls[rateKey]) && !attemptedTemporalZoomPrewarmRates.has(rateKey)
+	);
+	$: if (shouldPrewarmTemporalZoom && hasTemporalZoomPrewarmWork) {
+		void prewarmTemporalZoom();
+	}
 	$: if (lowPassNode) {
 		lowPassNode.frequency.value = lowPassHz;
 	}
@@ -36,9 +82,14 @@
 	$: if (volumeNode) {
 		volumeNode.gain.value = volume;
 	}
+	$: if (audio) {
+		applyPlaybackSettings();
+	}
 
 	onMount(() => {
 		audio.volume = 1;
+		useRenderedTemporalZoom = shouldUseRenderedTemporalZoom();
+		applyPlaybackSettings();
 	});
 
 	onDestroy(() => {
@@ -52,10 +103,33 @@
 		}
 	});
 
+	function applyPlaybackSettings() {
+		if (!audio) return;
+		audio.volume = useLitePlayback ? volume : 1;
+		audio.playbackRate = isUsingRenderedTemporalZoom ? 1 : playbackRate;
+
+		const pitchAudio = audio as PitchPreservingAudio;
+		if ('preservesPitch' in pitchAudio) pitchAudio.preservesPitch = true;
+		if ('mozPreservesPitch' in pitchAudio) pitchAudio.mozPreservesPitch = true;
+		if ('webkitPreservesPitch' in pitchAudio) pitchAudio.webkitPreservesPitch = true;
+	}
+
+	function shouldUseRenderedTemporalZoom(): boolean {
+		if (typeof window === 'undefined') return false;
+		const userAgent = window.navigator.userAgent;
+		const isIOS =
+			/iPad|iPhone|iPod/.test(userAgent) ||
+			(window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+		const isAndroid = /Android/.test(userAgent);
+		const isCoarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+		return isIOS || isAndroid || isCoarsePointer;
+	}
+
 	function setupAudioGraph() {
 		if (typeof window === 'undefined' || !audio) return;
 		const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 		if (!AudioCtx) return;
+		if (useLitePlayback) return;
 		if (audioContext) return;
 
 		audioContext = new AudioCtx();
@@ -83,6 +157,7 @@
 	}
 
 	async function ensureAudioContextRunning() {
+		if (useLitePlayback) return;
 		if (!audioContext) {
 			setupAudioGraph();
 		}
@@ -100,13 +175,13 @@
 				await ensureAudioContextRunning();
 
 				// Stop any other playing audio
-				if ($currentlyPlaying && $currentlyPlaying !== src) {
+				if ($currentlyPlaying && $currentlyPlaying !== effectiveSrc) {
 					const otherAudio = document.querySelector(`audio[src="${$currentlyPlaying}"]`) as HTMLAudioElement;
 					if (otherAudio) otherAudio.pause();
 				}
 
 				await audio.play();
-				currentlyPlaying.set(src);
+				currentlyPlaying.set(effectiveSrc);
 			} catch (error) {
 				console.error('Unable to play audio:', error);
 			}
@@ -119,6 +194,7 @@
 
 	function handleLoadedMetadata() {
 		duration = audio.duration;
+		applyPlaybackSettings();
 	}
 
 	function handleEnded() {
@@ -147,16 +223,76 @@
 		const secs = Math.floor(seconds % 60);
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	}
+
+	function selectPlaybackRate(rate: number) {
+		playbackRate = rate;
+		if (useRenderedTemporalZoom && rate !== 1) {
+			void prewarmTemporalZoom(String(rate), true);
+		}
+		applyPlaybackSettings();
+	}
+
+	async function prewarmTemporalZoom(preferredRateKey?: string, retryPreferred = false) {
+		if (prewarmingTemporalZoom) return;
+		prewarmingTemporalZoom = true;
+		const rateOrder = preferredRateKey
+			? [preferredRateKey, ...temporalZoomPrewarmOrder.filter((rateKey) => rateKey !== preferredRateKey)]
+			: temporalZoomPrewarmOrder;
+
+		try {
+			for (const rateKey of rateOrder) {
+				if (attemptedTemporalZoomPrewarmRates.has(rateKey) && !(retryPreferred && rateKey === preferredRateKey)) {
+					continue;
+				}
+
+				const url = temporalZoomPrepareUrls[rateKey];
+				if (!url) continue;
+
+				attemptedTemporalZoomPrewarmRates = new Set(attemptedTemporalZoomPrewarmRates).add(rateKey);
+				try {
+					const response = await fetch(url, { credentials: 'same-origin' });
+					if (response.ok) {
+						const result = (await response.json().catch(() => null)) as { ready?: boolean } | null;
+						if (result?.ready) {
+							preparedTemporalZoomRates = new Set(preparedTemporalZoomRates).add(rateKey);
+						}
+					} else {
+						console.warn('Unable to prewarm Temporal Zoom audio:', response.status);
+					}
+				} catch (error) {
+					console.warn('Unable to prewarm Temporal Zoom audio:', error);
+				}
+			}
+		} finally {
+			prewarmingTemporalZoom = false;
+		}
+	}
+
+	function handleAudioError() {
+		if (!isUsingRenderedTemporalZoom) return;
+		renderedTemporalZoomFailures = new Set(renderedTemporalZoomFailures).add(selectedRateKey);
+		applyPlaybackSettings();
+	}
+
+	function temporalZoomButtonClass(selected: boolean, compactButton = false): string {
+		const size = compactButton ? 'px-1.5 py-1 text-[11px]' : 'px-2 py-1.5 text-xs';
+		const state =
+			selected
+				? 'border-primary-500 bg-primary-100 text-primary-800 dark:border-primary-500 dark:bg-primary-900/40 dark:text-primary-100'
+				: 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-dark-border dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-hover';
+		return `rounded-md border ${size} font-medium transition-colors ${state}`;
+	}
 </script>
 
 <audio
 	bind:this={audio}
-	{src}
+	src={effectiveSrc}
 	on:timeupdate={handleTimeUpdate}
 	on:loadedmetadata={handleLoadedMetadata}
 	on:ended={handleEnded}
 	on:play={handlePlay}
 	on:pause={handlePause}
+	on:error={handleAudioError}
 	preload="metadata"></audio>
 
 {#if compact}
@@ -185,8 +321,63 @@
 				{showControls ? 'Hide audio controls' : 'Show audio controls'}
 			</button>
 		</div>
+		{#if temporalZoomProminent && !showControls}
+			<div class="rounded-lg border border-primary-100 bg-primary-50/70 p-2 text-xs dark:border-primary-900/50 dark:bg-primary-900/15">
+				<div class="mb-2 flex items-center justify-between gap-2">
+					<p class="font-medium text-primary-800 dark:text-primary-100">Temporal Zoom</p>
+					<p class="text-primary-700 dark:text-primary-200">{playbackRate.toFixed(2)}x</p>
+				</div>
+				<div class="grid grid-cols-5 gap-1">
+					{#each temporalZoomOptions as option}
+						{@const selected = playbackRate === option.rate}
+						<button
+							type="button"
+							class={temporalZoomButtonClass(selected, true)}
+							on:click={() => selectPlaybackRate(option.rate)}
+							aria-pressed={selected}
+							title={`${option.label}: ${option.detail}`}
+						>
+							{option.detail}
+						</button>
+					{/each}
+				</div>
+				<p class="mt-2 leading-snug text-primary-700/80 dark:text-primary-100/80">
+					“Zoom in” on the fast notes and tiny gaps without changing the pitch.
+				</p>
+			</div>
+		{/if}
 		{#if showControls}
 			<div class="grid grid-cols-2 gap-2 text-xs">
+				<div class="col-span-2 rounded-lg border border-gray-200 bg-white/80 p-2 dark:border-dark-border dark:bg-dark-nav/60">
+					<div class="mb-2 flex items-center justify-between gap-2">
+						<p class="font-medium text-gray-700 dark:text-gray-200">Temporal Zoom</p>
+						<p class="text-gray-500 dark:text-gray-400">{playbackRate.toFixed(2)}x</p>
+					</div>
+					<div class="grid grid-cols-5 gap-1">
+						{#each temporalZoomOptions as option}
+							{@const selected = playbackRate === option.rate}
+							<button
+								type="button"
+								class={temporalZoomButtonClass(selected, true)}
+								on:click={() => selectPlaybackRate(option.rate)}
+								aria-pressed={selected}
+								title={`${option.label}: ${option.detail}`}
+							>
+								{option.detail}
+							</button>
+						{/each}
+					</div>
+					<p class="mt-2 leading-snug text-gray-500 dark:text-gray-400">
+						Temporal zoom slows playback with pitch preservation so human listeners can notice fast notes, gaps, trills, and subtle differences. Preset labels are inspired by
+						<a
+							href={temporalZoomReferenceUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="text-primary-600 hover:underline dark:text-primary-400"
+						>research on temporal perception across species</a>
+						, not simulations of animal hearing.
+					</p>
+				</div>
 				<label class="text-gray-600 dark:text-gray-400">
 					Volume
 					<input class="w-full" type="range" min="0" max="1" step="0.01" bind:value={volume} />
@@ -245,6 +436,36 @@
 			</div>
 		</div>
 
+		{#if temporalZoomProminent && !showControls}
+			<div class="rounded-lg border border-primary-100 bg-primary-50/70 p-3 text-xs dark:border-primary-900/50 dark:bg-primary-900/15">
+				<div class="mb-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<p class="font-medium text-primary-800 dark:text-primary-100">Temporal Zoom</p>
+						<p class="text-primary-700/80 dark:text-primary-100/80">
+							“Zoom in” on the fast notes and tiny gaps without changing the pitch.
+
+						</p>
+					</div>
+					<p class="font-medium text-primary-700 dark:text-primary-200">{playbackRate.toFixed(2)}x</p>
+				</div>
+				<div class="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+					{#each temporalZoomOptions as option}
+						{@const selected = playbackRate === option.rate}
+						<button
+							type="button"
+							class={temporalZoomButtonClass(selected)}
+							on:click={() => selectPlaybackRate(option.rate)}
+							aria-pressed={selected}
+							title={`${option.label}: ${option.detail}`}
+						>
+							<span class="block">{option.label}</span>
+							<span class="block text-[11px] opacity-80">{option.detail}</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
 		<div>
 			<button
 				on:click={() => (showControls = !showControls)}
@@ -257,6 +478,42 @@
 
 		{#if showControls}
 			<div class="grid sm:grid-cols-2 gap-2 text-xs">
+				<div class="sm:col-span-2 rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-dark-border dark:bg-dark-nav/60">
+					<div class="mb-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+						<div>
+							<p class="font-medium text-gray-800 dark:text-gray-100">Temporal Zoom</p>
+							<p class="text-gray-500 dark:text-gray-400">
+								“Zoom in” on the fast notes and tiny gaps without changing the pitch.
+							</p>
+						</div>
+						<p class="font-medium text-gray-600 dark:text-gray-300">{playbackRate.toFixed(2)}x</p>
+					</div>
+					<div class="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+						{#each temporalZoomOptions as option}
+							{@const selected = playbackRate === option.rate}
+							<button
+								type="button"
+								class={temporalZoomButtonClass(selected)}
+								on:click={() => selectPlaybackRate(option.rate)}
+								aria-pressed={selected}
+								title={`${option.label}: ${option.detail}`}
+							>
+								<span class="block">{option.label}</span>
+								<span class="block text-[11px] opacity-80">{option.detail}</span>
+							</button>
+						{/each}
+					</div>
+					<p class="mt-2 leading-snug text-gray-500 dark:text-gray-400">
+						Reference labels are inspired by
+						<a
+							href={temporalZoomReferenceUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="text-primary-600 hover:underline dark:text-primary-400"
+						>research on temporal perception across species</a>
+						(Healy et al., 2013).
+					</p>
+				</div>
 				<label class="text-gray-600 dark:text-gray-400">
 					Volume ({Math.round(volume * 100)}%)
 					<input class="w-full" type="range" min="0" max="1" step="0.01" bind:value={volume} />
