@@ -1,6 +1,19 @@
 import { writable, derived } from 'svelte/store';
 import type { Detection, DetectionStats, SpeciesSummary } from '$lib/api';
 
+export const DEFAULT_SITE_NAME = 'BirdNET-Pi';
+
+function bootstrappedSiteName(): string {
+	if (typeof window === 'undefined') return DEFAULT_SITE_NAME;
+	return window.__BIRDNET_BOOTSTRAP__?.siteName?.trim() || DEFAULT_SITE_NAME;
+}
+
+export const siteName = writable(bootstrappedSiteName());
+
+export function setSiteName(name: string | null | undefined) {
+	siteName.set(name?.trim() || DEFAULT_SITE_NAME);
+}
+
 // Theme store
 function createThemeStore() {
 	const { subscribe, set, update } = writable<'light' | 'dark'>('light');

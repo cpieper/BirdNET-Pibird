@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { system as systemApi } from '$lib/api';
 	import { page } from '$app/stores';
+	import { siteName } from '$lib/stores';
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	const navItems = [
@@ -61,8 +62,8 @@
 	<div class="relative container mx-auto px-4 flex items-center justify-between">
 		<!-- Logo -->
 		<a href="/" class="flex items-center gap-3 text-white">
-			<img src="/bird.png" alt="BirdNET-Pi logo" class="w-8 h-8 rounded-md object-cover ring-1 ring-white/30" />
-			<span class="text-xl font-bold">BirdNET-Pi</span>
+			<img src="/bird.png" alt="{$siteName} logo" class="w-8 h-8 rounded-md object-cover ring-1 ring-white/30" />
+			<span class="max-w-64 truncate text-xl font-bold">{$siteName}</span>
 		</a>
 
 		<!-- Navigation Links -->
@@ -112,8 +113,8 @@
 	/>
 	<div class="relative h-full px-4 flex items-center justify-between">
 		<a href="/" class="flex items-center gap-2 text-white">
-			<img src="/bird.png" alt="BirdNET-Pi logo" class="w-7 h-7 rounded-md object-cover ring-1 ring-white/30" />
-			<span class="text-lg font-bold">BirdNET-Pi</span>
+			<img src="/bird.png" alt="{$siteName} logo" class="w-7 h-7 rounded-md object-cover ring-1 ring-white/30" />
+			<span class="max-w-[11rem] truncate text-lg font-bold">{$siteName}</span>
 		</a>
 
 		<div class="flex items-center gap-2">

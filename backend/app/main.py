@@ -2,13 +2,15 @@
 
 Main entry point for the web API.
 """
+import html
+import json
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import get_settings
@@ -42,6 +44,40 @@ def is_blocked_fallback_path(full_path: str) -> bool:
         if Path(lower_part).suffix in BLOCKED_FALLBACK_SUFFIXES:
             return True
     return False
+
+
+def script_safe_json(data: dict) -> str:
+    """Serialize JSON for inline script contexts."""
+    return (
+        json.dumps(data, separators=(',', ':'))
+        .replace('<', '\\u003c')
+        .replace('>', '\\u003e')
+        .replace('&', '\\u0026')
+    )
+
+
+def frontend_html_response(path: Path) -> HTMLResponse:
+    """Serve the SPA shell with the configured site name embedded for first paint."""
+    settings = get_settings()
+    site_name = settings.site_name or "BirdNET-Pi"
+    page = path.read_text(encoding='utf-8')
+    escaped_site_name = html.escape(site_name, quote=True)
+    bootstrap = (
+        '<script>'
+        f'window.__BIRDNET_BOOTSTRAP__={script_safe_json({"siteName": site_name})};'
+        '</script>'
+    )
+
+    page = page.replace('<title>BirdNET-Pi</title>', f'<title>{escaped_site_name}</title>', 1)
+    page = page.replace(
+        'content="BirdNET-Pi - Raspberry Pi bird detection system"',
+        f'content="{escaped_site_name} - Raspberry Pi bird detection system"',
+        1,
+    )
+    if 'window.__BIRDNET_BOOTSTRAP__' not in page:
+        page = page.replace('</head>', f'\t\t{bootstrap}\n\t</head>', 1)
+
+    return HTMLResponse(page, headers={"Cache-Control": "no-cache"})
 
 
 @asynccontextmanager
@@ -149,22 +185,24 @@ if os.path.exists(frontend_build_path):
 
         # If it's a file that exists, serve it
         if file_path.is_file():
+            if file_path.suffix == '.html':
+                return frontend_html_response(file_path)
             return FileResponse(file_path)
 
         # Check for .html extension (pre-rendered pages)
         html_path = file_path.with_suffix('.html')
         if html_path.is_file():
-            return FileResponse(html_path)
+            return frontend_html_response(html_path)
 
         # Check for index.html in directory
         index_path = file_path / 'index.html'
         if index_path.is_file():
-            return FileResponse(index_path)
+            return frontend_html_response(index_path)
 
         # SPA fallback: serve the main index.html
         index_html = Path(frontend_build_path) / 'index.html'
         if index_html.is_file():
-            return FileResponse(index_html)
+            return frontend_html_response(index_html)
 
         # Last resort fallback (shouldn't happen)
         return FileResponse(os.path.join(frontend_build_path, 'index.html'))

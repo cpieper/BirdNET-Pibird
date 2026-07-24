@@ -2,7 +2,7 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { detections, health, species as speciesApi, system as systemApi, type Detection, type DetectionStats, type SpeciesSummary, type RangeChartData } from '$lib/api';
 	import { StatsCard, DetectionCard, ExternalLinks, SpeciesImage, Modal } from '$lib/components';
-	import { auth, toasts } from '$lib/stores';
+	import { auth, setSiteName, siteName, toasts } from '$lib/stores';
 
 	let ChartJS: typeof import('chart.js/auto').default;
 
@@ -13,7 +13,6 @@
 	let topSpeciesExpanded = false;
 
 	const TOP_SPECIES_PREVIEW = 6;
-	let siteName: string = 'BirdNET-Pi';
 	let loading = true;
 	let refreshInterval: ReturnType<typeof setInterval>;
 
@@ -149,7 +148,7 @@
 			newSpeciesTodayDetections = newSpeciesData;
 			newSpeciesTodaySet = pinnedSpecies;
 			groupedDetections = sortDetectionGroups(groupLatest(mergedDetections), pinnedSpecies);
-			siteName = infoData.site_name;
+			setSiteName(infoData.site_name);
 			topSpeciesToday = speciesTodayData.species;
 			topSpeciesAllTime = speciesAllTimeData.species;
 			topSpeciesExpanded = false;
@@ -359,7 +358,7 @@
 </script>
 
 <svelte:head>
-	<title>{siteName} - Dashboard</title>
+	<title>{$siteName} - Dashboard</title>
 </svelte:head>
 
 <div class="container mx-auto px-4 py-6 overflow-x-hidden">
@@ -367,7 +366,7 @@
 	<div class="mb-8">
 		<div class="flex flex-wrap items-center justify-between gap-3">
 			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
-				{siteName}
+				{$siteName}
 			</h1>
 			<a href="/detections" class="btn-primary">Review Detections</a>
 		</div>
