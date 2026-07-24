@@ -439,18 +439,55 @@ check_password_config() {
     fi
 }
 
+wait_for_service_active() {
+    local service="$1"
+    local timeout="${2:-10}"
+    local elapsed=0
+
+    while [ "$elapsed" -lt "$timeout" ]; do
+        if sudo systemctl is-active --quiet "$service"; then
+            return 0
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+
+    sudo systemctl is-active --quiet "$service"
+}
+
+restart_caddy_service() {
+    local restart_output
+    local restart_status=0
+
+    restart_output="$(sudo systemctl restart caddy 2>&1)" || restart_status=$?
+
+    if wait_for_service_active caddy 10; then
+        if [ "$restart_status" -ne 0 ]; then
+            echo_warn "Caddy restart returned a transient error, but the service is active; continuing."
+        fi
+        return 0
+    fi
+
+    echo_error "Caddy service failed to start"
+    if [ -n "$restart_output" ]; then
+        printf '%s\n' "$restart_output"
+    fi
+    echo_error "Check logs with: sudo journalctl -u caddy -n 50"
+    return 1
+}
+
 start_services() {
     echo_step "Starting services..."
     
-    # Reload and restart Caddy
-    sudo systemctl reload caddy || sudo systemctl restart caddy
+    # The generated Caddyfile disables the admin API, so package-level reloads can
+    # report a failed job even when a restart immediately succeeds.
+    restart_caddy_service
     
     # Start the new web service
     sudo systemctl start birdnet-web
     
     # Verify it's running
-    sleep 2
-    if sudo systemctl is-active --quiet birdnet-web; then
+    if wait_for_service_active birdnet-web 10; then
         echo_info "Web service started successfully"
     else
         echo_error "Web service failed to start"
