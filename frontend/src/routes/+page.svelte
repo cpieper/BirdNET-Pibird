@@ -143,7 +143,7 @@
 		? displayedTopSpecies
 		: displayedTopSpecies.slice(0, TOP_SPECIES_PREVIEW);
 	$: canExpandTopSpecies = displayedTopSpecies.length > TOP_SPECIES_PREVIEW;
-	$: speciesViewAllHref = topSpeciesMode === 'today' ? `/species?date=today` : '/species';
+	$: topSpeciesTitle = topSpeciesMode === 'today' ? 'Top Species Today' : 'Top Species All Time';
 
 	function setTopSpeciesMode(mode: 'today' | 'all') {
 		topSpeciesMode = mode;
@@ -541,9 +541,9 @@
 
 		<!-- Top Species -->
 		<div class="card mb-8">
-				<div class="card-header flex items-center justify-between">
+				<div class="card-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<div class="flex items-center gap-3">
-						<h3 class="font-semibold text-gray-900 dark:text-gray-100">Top Species</h3>
+						<h3 class="font-semibold text-gray-900 dark:text-gray-100">{topSpeciesTitle}</h3>
 						<div class="inline-flex rounded-lg border border-gray-200 dark:border-dark-border overflow-hidden text-xs">
 							<button
 								type="button"
@@ -571,9 +571,6 @@
 								{topSpeciesExpanded ? 'Show less' : `Show all ${displayedTopSpecies.length}`}
 							</button>
 						{/if}
-						<a href={speciesViewAllHref} class="text-primary-600 dark:text-primary-400 hover:underline text-sm">
-							{topSpeciesMode === 'today' ? 'Species today →' : 'View all →'}
-						</a>
 					</div>
 				</div>
 				{#if displayedTopSpecies.length === 0}
@@ -589,24 +586,34 @@
 						</p>
 					</div>
 				{:else}
-					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 divide-gray-200 dark:divide-dark-border">
-						{#each visibleTopSpecies as sp (sp.Sci_Name)}
-							<div class="flex items-center gap-4 px-6 py-3 hover:bg-gray-50 dark:hover:bg-dark-border transition-colors">
+					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+						{#each visibleTopSpecies as sp, index (sp.Sci_Name)}
+							<div class="flex min-w-0 items-start gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-dark-border">
+								<span class="mt-1 w-5 flex-shrink-0 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">
+									{index + 1}
+								</span>
 								<div class="flex-shrink-0 rounded-full overflow-hidden">
 									<SpeciesImage sciName={sp.Sci_Name} size="xs" />
 								</div>
 								<div class="flex-1 min-w-0">
-									<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="block">
-										<p class="font-medium text-gray-900 dark:text-gray-100 truncate hover:underline">{sp.Com_Name}</p>
+									<div class="flex min-w-0 items-start justify-between gap-3">
+										<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="block min-w-0">
+											<p class="font-medium text-gray-900 dark:text-gray-100 truncate hover:underline">{sp.Com_Name}</p>
+										</a>
+										<a
+											href={topSpeciesMode === 'today' ? `/detections?date=${todayStr()}&species=${encodeURIComponent(sp.Sci_Name)}` : `/detections?species=${encodeURIComponent(sp.Sci_Name)}`}
+											class="flex-shrink-0 rounded-md bg-primary-50 px-2 py-0.5 text-sm font-semibold text-primary-700 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/50"
+											aria-label={`${sp.Count} ${sp.Count === 1 ? 'detection' : 'detections'} for ${sp.Com_Name}`}
+										>
+											{sp.Count}
+										</a>
+									</div>
+									<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="block min-w-0">
 										<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">{sp.Sci_Name}</p>
 									</a>
 									<div class="mt-1">
 										<ExternalLinks sciName={sp.Sci_Name} comName={sp.Com_Name} compact={true} />
 									</div>
-								</div>
-								<div class="flex-shrink-0 text-right">
-									<span class="text-lg font-semibold text-primary-600 dark:text-primary-400">{sp.Count}</span>
-									<p class="text-xs text-gray-500 dark:text-gray-400">{sp.Count === 1 ? 'detection' : 'detections'}</p>
 								</div>
 							</div>
 						{/each}
