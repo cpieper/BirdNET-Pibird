@@ -79,6 +79,19 @@ def recording_filenames(directory: str | Path) -> list[str]:
     ]
 
 
+def species_folder_keys(sci_name: str, com_name: str) -> set[str]:
+    """Return likely recording folder names for species metadata."""
+    names = {sci_name, com_name}
+    keys: set[str] = set()
+    for name in names:
+        clean_name = " ".join((name or "").split())
+        if not clean_name:
+            continue
+        keys.add(clean_name)
+        keys.add(clean_name.replace(" ", "_"))
+    return keys
+
+
 def species_metadata_by_folder(settings: Settings, date: str | None = None) -> dict[str, dict[str, str]]:
     """Return latest species metadata keyed by recording folder name."""
     if not os.path.exists(settings.db_path):
@@ -91,10 +104,11 @@ def species_metadata_by_folder(settings: Settings, date: str | None = None) -> d
     try:
         rows = conn.execute(
             f"""
-            SELECT Date, Time, File_Name, Sci_Name, Com_Name
+            SELECT Sci_Name, Com_Name, MAX(Date || ' ' || Time) AS LatestSeen
             FROM detections
             {where_clause}
-            ORDER BY Date DESC, Time DESC
+            GROUP BY Sci_Name, Com_Name
+            ORDER BY LatestSeen DESC
             """,
             params,
         ).fetchall()
@@ -103,13 +117,12 @@ def species_metadata_by_folder(settings: Settings, date: str | None = None) -> d
 
     metadata: dict[str, dict[str, str]] = {}
     for row in rows:
-        folder = extract_species_from_filename(row["File_Name"])
-        if folder in metadata:
-            continue
-        metadata[folder] = {
+        species_metadata = {
             "sci_name": row["Sci_Name"],
             "com_name": row["Com_Name"],
         }
+        for folder in species_folder_keys(row["Sci_Name"], row["Com_Name"]):
+            metadata.setdefault(folder, species_metadata)
     return metadata
 
 
