@@ -38,11 +38,22 @@
 		? speciesDisplayName(selectedSpeciesSummary)
 		: formatBirdName(selectedSpecies);
 
+	function todayStr(): string {
+		const d = new Date();
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	}
+
+	function defaultLibraryDate(availableDates: string[]): string {
+		if (availableDates.length === 0) return '';
+		const today = todayStr();
+		return availableDates.includes(today) ? today : availableDates[0];
+	}
+
 	async function loadDates() {
 		try {
 			const result = await media.dates();
 			dates = result.dates;
-			selectedDate = queryDate && dates.includes(queryDate) ? queryDate : '';
+			selectedDate = queryDate && dates.includes(queryDate) ? queryDate : defaultLibraryDate(dates);
 			await loadSpecies(!!querySpecies);
 
 			if (querySpecies && speciesForDate.some((sp) => sp.name === querySpecies)) {
