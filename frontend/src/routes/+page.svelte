@@ -623,16 +623,23 @@
 
 		<!-- Latest Detections -->
 		<div class="mb-8">
-			<div class="flex items-center justify-between mb-2">
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-					Latest Detections
-				</h2>
+			<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+				<div class="flex flex-wrap items-center gap-2">
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+						Latest Detections
+					</h2>
+					{#if groupedDetections.length > 0}
+						<span class="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-nav dark:text-gray-300">
+							{groupedDetections.length} species
+						</span>
+					{/if}
+				</div>
 				<a href="/detections" class="text-primary-600 dark:text-primary-400 hover:underline text-sm">
 					Open Review →
 				</a>
 			</div>
 			<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-				Group view by species to reduce duplicate-card clutter. New species are pinned first.
+				Most recent recording for each species. Repeats are summarized on the card.
 			</p>
 
 			{#if groupedDetections.length === 0}
@@ -646,15 +653,16 @@
 					</p>
 				</div>
 			{:else}
-				<div class="grid gap-4 md:grid-cols-2">
+				<div class="grid gap-3 md:grid-cols-2">
 					{#each groupedDetections as group (group.sciName)}
 						<DetectionCard
 							detection={group.latest}
 							showDate={false}
 							href={detectionsHref(group.latest, { newOnDate: isPinnedNewSpecies(group.sciName) })}
 							allowSpectrogramExpand={false}
-							tagLabel={isPinnedNewSpecies(group.sciName) ? 'New species today' : null}
+							tagLabel={isPinnedNewSpecies(group.sciName) ? 'New today' : null}
 							groupedCount={group.count}
+							groupedCountContext="today"
 						/>
 					{/each}
 				</div>

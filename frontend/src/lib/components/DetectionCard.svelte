@@ -24,6 +24,10 @@ import { goto } from '$app/navigation';
 
 	$: additionalDetectionCount =
 		groupedCount != null && groupedCount > 1 ? groupedCount - 1 : 0;
+	$: groupedSummary =
+		additionalDetectionCount > 0
+			? `${groupedCount ?? 0} detections`
+			: '';
 
 	const dispatch = createEventDispatcher<{ delete: Detection }>();
 
@@ -78,13 +82,13 @@ import { goto } from '$app/navigation';
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
-	class="card w-full max-w-full p-4 fade-in {href ? 'cursor-pointer hover:border-primary-200 hover:shadow-md transition-shadow dark:hover:border-primary-900' : ''}"
+	class="card w-full max-w-full p-3 fade-in sm:p-4 {href ? 'cursor-pointer hover:border-primary-200 hover:shadow-md transition-shadow dark:hover:border-primary-900' : ''}"
 	on:click={handleCardClick}
 >
-	<div class="flex gap-4">
+	<div class="flex gap-3 sm:gap-4">
 		<!-- Bird Image -->
 		{#if showImage}
-			<div class="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-dark-border">
+			<div class="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-200 dark:bg-dark-border">
 				<SpeciesImage sciName={detection.Sci_Name} size="sm" />
 			</div>
 		{/if}
@@ -93,13 +97,6 @@ import { goto } from '$app/navigation';
 		<div class="flex-1 min-w-0">
 			<div class="flex items-start justify-between gap-3">
 				<div class="min-w-0 flex-1">
-					{#if tagLabel}
-						<div class="mb-2">
-							<span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-								{tagLabel}
-							</span>
-						</div>
-					{/if}
 					{#if href}
 						<a
 							href={href}
@@ -111,21 +108,36 @@ import { goto } from '$app/navigation';
 						<h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate">
 							{detection.Com_Name}
 						</h3>
-						{/if}
-						<div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0" data-no-card-link>
-							<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate max-w-full">
-								{detection.Sci_Name}
-							</p>
-							<ExternalLinks
-								links={speciesLinks}
-								sciName={detection.Sci_Name}
-								comName={detection.Com_Name}
-								compact={true}
-							/>
-						</div>
+					{/if}
+					<div class="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-no-card-link>
+						<p class="max-w-full truncate text-sm italic text-gray-500 dark:text-gray-400">
+							{detection.Sci_Name}
+						</p>
+						<ExternalLinks
+							links={speciesLinks}
+							sciName={detection.Sci_Name}
+							comName={detection.Com_Name}
+							compact={true}
+						/>
 					</div>
-				<div class="flex items-center gap-2 flex-shrink-0" data-no-card-link>
-					<span class="badge-primary">
+					<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+						<span class="rounded-md bg-gray-100 px-2 py-0.5 font-medium text-gray-600 dark:bg-dark-nav dark:text-gray-300">
+							{#if showDate}{detection.Date} · {/if}{formatTime(detection.Time)}
+						</span>
+						{#if tagLabel}
+							<span class="rounded-md bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+								{tagLabel}
+							</span>
+						{/if}
+						{#if groupedSummary}
+							<span class="rounded-md bg-primary-50 px-2 py-0.5 font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-200">
+								{groupedSummary}
+							</span>
+						{/if}
+					</div>
+				</div>
+				<div class="flex flex-shrink-0 items-center gap-2" data-no-card-link>
+					<span class="rounded-md bg-primary-50 px-2 py-1 text-xs font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-200">
 						{formatConfidence(detection.Confidence)}
 					</span>
 					{#if allowDelete}
@@ -149,12 +161,6 @@ import { goto } from '$app/navigation';
 				</div>
 			</div>
 
-			<div class="mt-2 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-				{#if showDate}
-					<span>{detection.Date}</span>
-				{/if}
-				<span>{formatTime(detection.Time)}</span>
-			</div>
 		</div>
 	</div>
 
@@ -209,9 +215,9 @@ import { goto } from '$app/navigation';
 	</div>
 
 	{#if additionalDetectionCount > 0}
-		<p class="mt-3 border-t border-gray-200 pt-3 text-xs text-gray-600 dark:border-dark-border dark:text-gray-400">
-			+{additionalDetectionCount} more {detection.Com_Name}
-			{additionalDetectionCount === 1 ? 'detection' : 'detections'}
+		<p class="mt-3 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-dark-border dark:text-gray-400">
+			{additionalDetectionCount === 1 ? 'One more recording' : `${additionalDetectionCount} more recordings`}
+			{' '}
 			{groupedCountContext}
 		</p>
 	{/if}
