@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { detections, integrations, media, type SpeciesExternalLinks } from '$lib/api';
 	import { verifyPasswordLogin } from '$lib/auth';
-	import { AudioPlayer, ExternalLinks, Modal } from '$lib/components';
+	import { AudioPlayer, DatePicker, ExternalLinks, Modal } from '$lib/components';
 	import { auth, toasts } from '$lib/stores';
 	import { formatBirdName } from '$lib';
 
@@ -281,19 +281,13 @@
 	<div class="card p-4 mb-6">
 		<div class="grid md:grid-cols-2 gap-4">
 			<!-- Date selector -->
-			<div>
-				<label for="date" class="label">Date</label>
-				<select
-					id="date"
-					bind:value={selectedDate}
-					on:change={handleDateChange}
-					class="select"
-				>
-					{#each dates as date}
-						<option value={date}>{date}</option>
-					{/each}
-				</select>
-			</div>
+			<DatePicker
+				id="libraryDate"
+				bind:value={selectedDate}
+				dates={dates}
+				on:change={handleDateChange}
+				disabled={dates.length === 0}
+			/>
 
 			<!-- Species selector -->
 			<div>

@@ -9,11 +9,12 @@
 		type SpeciesSummary,
 	} from '$lib/api';
 	import { verifyPasswordLogin } from '$lib/auth';
-	import { DetectionCard, Modal } from '$lib/components';
+	import { DatePicker, DetectionCard, Modal } from '$lib/components';
 	import { auth, toasts } from '$lib/stores';
 
 	let allDetections: Detection[] = [];
 	let loading = true;
+	let speciesQuery = '';
 	let searchTerm = '';
 	let selectedDate = '';
 	let selectedSpecies = '';
@@ -30,6 +31,13 @@
 	let passwordInput = '';
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 	let detectionsRequestId = 0;
+
+	$: selectedSpeciesLabel =
+		speciesOptions.find((species) => species.Sci_Name === selectedSpecies)?.Com_Name || selectedSpecies;
+	$: hasSpeciesFilter = Boolean(selectedSpecies || searchTerm);
+	$: speciesFilterLabel = selectedSpecies ? selectedSpeciesLabel : searchTerm;
+	$: hasActiveFilters = Boolean(selectedDate || hasSpeciesFilter || newOnDateOnly);
+	$: resultLabel = `Showing ${allDetections.length} of ${total} ${hasSpeciesFilter ? 'matching detections' : 'detections'}`;
 
 	function todayStr(): string {
 		const d = new Date();
@@ -94,6 +102,7 @@
 			if (selectedSpecies && !speciesOptions.some((item) => item.Sci_Name === selectedSpecies)) {
 				selectedSpecies = '';
 			}
+			syncSpeciesQueryFromFilters();
 		} catch (e) {
 			console.error('Failed to load species options:', e);
 		}
@@ -113,16 +122,12 @@
 		loadDetections();
 	}
 
-	function handleDateChange() {
+	async function handleDateChange() {
 		if (!selectedDate) {
 			newOnDateOnly = false;
 		}
-		loadSpeciesOptions();
-		loadDetections(true);
-	}
-
-	function handleSpeciesChange() {
-		loadDetections(true);
+		await loadSpeciesOptions();
+		void loadDetections(true);
 	}
 
 	function handleNewOnDateToggle() {
@@ -133,11 +138,47 @@
 		void loadDetections(true);
 	}
 
-	function queueSearch() {
+	function normalizeSpeciesValue(value: string): string {
+		return value.trim().toLowerCase();
+	}
+
+	function speciesMatchForQuery(value: string): SpeciesSummary | undefined {
+		const query = normalizeSpeciesValue(value);
+		if (!query) return undefined;
+		return speciesOptions.find(
+			(species) =>
+				normalizeSpeciesValue(species.Com_Name) === query ||
+				normalizeSpeciesValue(species.Sci_Name) === query
+		);
+	}
+
+	function syncSpeciesQueryFromFilters() {
+		const selectedOption = speciesOptions.find((species) => species.Sci_Name === selectedSpecies);
+		speciesQuery = selectedSpecies ? selectedOption?.Com_Name || selectedSpecies : searchTerm;
+	}
+
+	function applySpeciesQuery(immediate = false) {
+		const query = speciesQuery.trim();
+		const match = speciesMatchForQuery(query);
+		selectedSpecies = match?.Sci_Name || '';
+		searchTerm = match ? '' : query;
+
 		if (searchTimer) clearTimeout(searchTimer);
+		if (immediate) {
+			void loadDetections(true);
+			return;
+		}
 		searchTimer = setTimeout(() => {
 			void loadDetections(true);
 		}, 250);
+	}
+
+	function handleSpeciesQueryInput() {
+		applySpeciesQuery();
+	}
+
+	function handleSpeciesQueryCommit() {
+		applySpeciesQuery(true);
 	}
 
 	function clearDateFilter() {
@@ -147,13 +188,10 @@
 		void loadDetections(true);
 	}
 
-	function clearSpeciesFilter() {
+	function clearSpeciesQueryFilter() {
 		selectedSpecies = '';
-		void loadDetections(true);
-	}
-
-	function clearSearchFilter() {
 		searchTerm = '';
+		speciesQuery = '';
 		if (searchTimer) clearTimeout(searchTimer);
 		void loadDetections(true);
 	}
@@ -162,6 +200,7 @@
 		selectedDate = '';
 		selectedSpecies = '';
 		searchTerm = '';
+		speciesQuery = '';
 		newOnDateOnly = false;
 		if (searchTimer) clearTimeout(searchTimer);
 		void loadSpeciesOptions();
@@ -266,15 +305,16 @@
 		toasts.show('Authenticated', 'success');
 	}
 
-	onMount(() => {
+	onMount(async () => {
 		const query = new URLSearchParams(window.location.search);
 		selectedDate = query.get('date') || todayStr();
 		selectedSpecies = query.get('species') || '';
 		searchTerm = query.get('search') || '';
+		speciesQuery = selectedSpecies || searchTerm;
 		newOnDateOnly = query.get('new_on_date') === 'true';
-		loadDates();
-		loadSpeciesOptions();
-		loadDetections(true);
+		await loadDates();
+		await loadSpeciesOptions();
+		await loadDetections(true);
 	});
 
 	onDestroy(() => {
@@ -293,72 +333,71 @@
 	</div>
 
 	<!-- Filters -->
-	<div class="mb-6 rounded-2xl border border-gray-200/80 bg-white/95 p-4 shadow-sm dark:border-dark-border/80 dark:bg-dark-card/95">
-		<div class="flex flex-col gap-4 lg:flex-row lg:items-end">
-			<!-- Search -->
-			<div class="flex-1">
-				<label for="search" class="label">Search</label>
+	<div class="card mb-6 p-4">
+		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+			<div>
+				<p class="text-sm font-medium text-gray-900 dark:text-gray-100">Review queue</p>
+				<p class="text-xs text-gray-500 dark:text-gray-400">{resultLabel}</p>
+			</div>
+			{#if hasActiveFilters}
+				<button type="button" class="btn-ghost btn-sm" on:click={clearAllFilters}>
+					Clear all
+				</button>
+			{/if}
+		</div>
+
+		<div class="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_12rem_auto] lg:items-end">
+			<!-- Species search -->
+			<div>
+				<label for="speciesSearch" class="label">Species</label>
 				<input
-					id="search"
+					id="speciesSearch"
 					type="text"
-					bind:value={searchTerm}
-					on:input={queueSearch}
-					placeholder="Search by species name..."
+					bind:value={speciesQuery}
+					on:input={handleSpeciesQueryInput}
+					on:change={handleSpeciesQueryCommit}
+					list="speciesOptionsList"
+					placeholder="Search or choose species..."
 					class="input"
 				/>
-			</div>
-
-			<!-- Date filter -->
-			<div class="w-full md:w-48">
-				<label for="date" class="label">Date</label>
-				<select
-					id="date"
-					bind:value={selectedDate}
-					on:change={handleDateChange}
-					class="select"
-				>
-					<option value="">All dates</option>
-					{#each availableDates as date}
-						<option value={date}>{date}</option>
-					{/each}
-				</select>
-			</div>
-
-			<div class="w-full md:w-60">
-				<label for="speciesFilter" class="label">Species</label>
-				<select
-					id="speciesFilter"
-					bind:value={selectedSpecies}
-					on:change={handleSpeciesChange}
-					class="select"
-				>
-					<option value="">All species</option>
+				<datalist id="speciesOptionsList">
 					{#each speciesOptions as species}
-						<option value={species.Sci_Name}>{species.Com_Name}</option>
+						<option value={species.Com_Name}>{species.Sci_Name}</option>
 					{/each}
-				</select>
+				</datalist>
 			</div>
 
-			<div class="w-full md:w-auto">
-				<label class="label" for="newOnDateOnly">New on date</label>
+			<DatePicker
+				id="reviewDate"
+				bind:value={selectedDate}
+				dates={availableDates}
+				includeAll={true}
+				on:change={handleDateChange}
+			/>
+
+			<div>
 				<button
 					id="newOnDateOnly"
 					type="button"
 					role="switch"
 					aria-checked={newOnDateOnly}
+					aria-label="Only show species first detected on the selected date"
 					on:click={() => {
 						newOnDateOnly = !newOnDateOnly;
 						handleNewOnDateToggle();
 					}}
 					disabled={!selectedDate}
-					class="inline-flex w-full items-center justify-between gap-3 rounded-lg border px-4 py-2 text-sm font-medium transition-colors md:min-w-44 {newOnDateOnly
+					class="inline-flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm font-medium transition-colors lg:min-w-44 {newOnDateOnly
 						? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200'
 						: 'border-gray-300 bg-white text-gray-600 dark:border-dark-border dark:bg-dark-card dark:text-gray-300'} disabled:cursor-not-allowed disabled:opacity-50"
 					title={selectedDate ? 'Show only species first detected on this date' : 'Select a date to enable this filter'}
 				>
-					<span>{newOnDateOnly ? 'New on date' : 'All species'}</span>
+					<span class="flex flex-col text-left leading-tight">
+						<span>Only new species</span>
+						<span class="text-xs font-normal opacity-70">{newOnDateOnly ? 'On' : 'Off'}</span>
+					</span>
 					<span
-						class="inline-flex h-5 w-9 items-center rounded-full transition-colors {newOnDateOnly ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-dark-border'}"
+						class="inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors {newOnDateOnly ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-dark-border'}"
 					>
 						<span
 							class="ml-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform {newOnDateOnly ? 'translate-x-4' : ''}"
@@ -366,65 +405,45 @@
 					</span>
 				</button>
 			</div>
-
-			{#if selectedDate || selectedSpecies || searchTerm || newOnDateOnly}
-				<div class="flex items-end">
-					<button class="btn-ghost w-full lg:w-auto" on:click={clearAllFilters}>
-						Clear all
-					</button>
-				</div>
-			{/if}
 		</div>
 
-		<div class="mt-4 flex flex-col gap-2 border-t border-gray-200/80 pt-4 dark:border-dark-border/80">
-			<p class="text-sm text-gray-600 dark:text-gray-400">
-				Showing {allDetections.length} of {total} {searchTerm ? 'matching detections' : 'detections'}
-			</p>
-			<div class="flex flex-wrap gap-2">
+		{#if hasActiveFilters}
+			<div class="mt-4 flex flex-wrap gap-2 border-t border-gray-200/80 pt-3 dark:border-dark-border/80">
 				{#if selectedDate}
 					<button
-						class="inline-flex items-center gap-2 rounded-full bg-primary-100 dark:bg-primary-900/30 px-3 py-1 text-xs text-primary-700 dark:text-primary-300"
+						type="button"
+						class="inline-flex items-center gap-2 rounded-md bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50"
 						on:click={clearDateFilter}
 					>
 						<span>Date: {selectedDate}</span>
 						<span aria-hidden="true">×</span>
 					</button>
 				{/if}
-				{#if selectedSpecies}
+				{#if hasSpeciesFilter}
 					<button
-						class="inline-flex items-center gap-2 rounded-full bg-primary-100 dark:bg-primary-900/30 px-3 py-1 text-xs text-primary-700 dark:text-primary-300"
-						on:click={clearSpeciesFilter}
+						type="button"
+						class="inline-flex items-center gap-2 rounded-md bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50"
+						on:click={clearSpeciesQueryFilter}
 					>
-						<span>Species: {selectedSpecies}</span>
+						<span>Species: {speciesFilterLabel}</span>
 						<span aria-hidden="true">×</span>
 					</button>
 				{/if}
-					{#if searchTerm}
-						<button
-							class="inline-flex items-center gap-2 rounded-full bg-primary-100 dark:bg-primary-900/30 px-3 py-1 text-xs text-primary-700 dark:text-primary-300"
-							on:click={clearSearchFilter}
-						>
-							<span>Search: {searchTerm}</span>
-							<span aria-hidden="true">×</span>
-						</button>
-					{/if}
-					{#if newOnDateOnly}
-						<button
-							class="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-							on:click={() => {
-								newOnDateOnly = false;
-								void loadDetections(true);
-							}}
-						>
-							<span>New on date</span>
-							<span aria-hidden="true">×</span>
-						</button>
-					{/if}
-				</div>
-				<p class="text-xs text-gray-500 dark:text-gray-400">
-					Open a recording for details, then use Shift or cleanup actions only when needed.
-			</p>
-		</div>
+				{#if newOnDateOnly}
+					<button
+						type="button"
+						class="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
+						on:click={() => {
+							newOnDateOnly = false;
+							void loadDetections(true);
+						}}
+					>
+						<span>Only new species</span>
+						<span aria-hidden="true">×</span>
+					</button>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<!-- Detections grid -->
@@ -435,9 +454,9 @@
 	{:else if allDetections.length === 0}
 		<div class="card p-8 text-center">
 			<p class="text-gray-600 dark:text-gray-400">
-				{searchTerm ? 'No matching detections found' : 'No detections found'}
+				{hasSpeciesFilter ? 'No matching detections found' : 'No detections found'}
 			</p>
-			{#if searchTerm || selectedDate || selectedSpecies}
+			{#if hasSpeciesFilter || selectedDate}
 				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
 					Try clearing one or more filters to widen the review queue.
 				</p>
@@ -451,11 +470,12 @@
 						{detection}
 						href={detectionRecordingsHref(detection)}
 					/>
-					<div class="card p-3 flex flex-wrap items-center gap-2">
+					<div class="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200/80 bg-white px-3 py-2 text-sm shadow-sm dark:border-dark-border/80 dark:bg-dark-card">
 						<a class="btn-primary btn-sm" href={detectionRecordingsHref(detection)}>
 							Open in Library
 						</a>
 						<button
+							type="button"
 							class="btn-secondary btn-sm"
 							on:click={() => shiftDetection(detection)}
 							disabled={shiftingFiles.has(detection.File_Name)}
@@ -463,13 +483,15 @@
 							{shiftingFiles.has(detection.File_Name) ? 'Shifting...' : 'Shift'}
 						</button>
 						<button
-							class="inline-flex items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-900/70 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-900/30"
+							type="button"
+							class="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20"
 							on:click={() => excludeSpecies(detection)}
 						>
 							Exclude
 						</button>
 						<button
-							class="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/70 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-900/30"
+							type="button"
+							class="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-900/20"
 							on:click={() => deleteDetectionFile(detection)}
 							disabled={deletingFiles.has(detection.File_Name)}
 						>
