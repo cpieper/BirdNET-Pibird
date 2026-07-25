@@ -7,6 +7,7 @@
 	export let dates: string[] = [];
 	export let includeAll = false;
 	export let allLabel = 'All dates';
+	export let allAriaLabel = 'All dates';
 	export let disabled = false;
 
 	const dispatch = createEventDispatcher<{ change: string }>();
@@ -26,15 +27,30 @@
 </script>
 
 <div>
-	<div class="mb-1 flex items-center justify-between gap-2">
+	<div class="mb-1">
 		<label for={id} class="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+	</div>
+
+	<div class="flex">
+		<input
+			{id}
+			type="date"
+			bind:value
+			on:change={handleDateChange}
+			list={dateListId}
+			min={minDate || undefined}
+			max={maxDate || undefined}
+			class="input min-w-0 flex-1 pr-3 {includeAll ? 'rounded-r-none border-r-0' : ''}"
+			{disabled}
+		/>
 		{#if includeAll}
 			<button
 				type="button"
-				class="rounded-md px-2 py-0.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 {value
-					? 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-dark-hover dark:hover:text-gray-200'
+				class="inline-flex items-center justify-center rounded-r-lg border border-gray-300 px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-border {value
+					? 'bg-white text-gray-600 hover:bg-gray-100 hover:text-gray-800 dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-hover dark:hover:text-gray-100'
 					: 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'}"
 				aria-pressed={!value}
+				aria-label={allAriaLabel}
 				{disabled}
 				on:click={() => commit('')}
 			>
@@ -42,18 +58,6 @@
 			</button>
 		{/if}
 	</div>
-
-	<input
-		{id}
-		type="date"
-		bind:value
-		on:change={handleDateChange}
-		list={dateListId}
-		min={minDate || undefined}
-		max={maxDate || undefined}
-		class="input pr-3"
-		{disabled}
-	/>
 
 	<datalist id={dateListId}>
 		{#each dates as date}

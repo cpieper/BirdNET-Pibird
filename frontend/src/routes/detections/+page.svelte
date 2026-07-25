@@ -346,7 +346,7 @@
 			{/if}
 		</div>
 
-		<div class="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_12rem_auto] lg:items-end">
+		<div class="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_16rem_auto] lg:items-end">
 			<!-- Species search -->
 			<div>
 				<label for="speciesSearch" class="label">Species</label>
@@ -372,6 +372,7 @@
 				bind:value={selectedDate}
 				dates={availableDates}
 				includeAll={true}
+				allLabel="All"
 				on:change={handleDateChange}
 			/>
 

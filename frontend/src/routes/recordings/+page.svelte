@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { detections, integrations, media, type SpeciesExternalLinks } from '$lib/api';
+	import {
+		detections,
+		integrations,
+		media,
+		type RecordingSpeciesSummary,
+		type SpeciesExternalLinks,
+	} from '$lib/api';
 	import { verifyPasswordLogin } from '$lib/auth';
 	import { AudioPlayer, DatePicker, ExternalLinks, Modal } from '$lib/components';
 	import { auth, toasts } from '$lib/stores';
@@ -8,7 +14,7 @@
 
 	let dates: string[] = [];
 	let selectedDate = '';
-	let speciesForDate: { name: string; count: number }[] = [];
+	let speciesForDate: RecordingSpeciesSummary[] = [];
 	let selectedSpecies = '';
 	let files: { name: string; has_spectrogram: boolean; size: number }[] = [];
 	let loading = false;
@@ -32,14 +38,12 @@
 		try {
 			const result = await media.dates();
 			dates = result.dates;
-			if (dates.length > 0) {
-				selectedDate = queryDate && dates.includes(queryDate) ? queryDate : dates[0];
-				await loadSpecies(!!querySpecies);
+			selectedDate = queryDate && dates.includes(queryDate) ? queryDate : '';
+			await loadSpecies(!!querySpecies);
 
-				if (querySpecies && speciesForDate.some((sp) => sp.name === querySpecies)) {
-					selectedSpecies = querySpecies;
-					await loadFiles();
-				}
+			if (querySpecies && speciesForDate.some((sp) => sp.name === querySpecies)) {
+				selectedSpecies = querySpecies;
+				await loadFiles();
 			}
 		} catch (e) {
 			console.error('Failed to load dates:', e);
@@ -48,11 +52,9 @@
 	}
 
 	async function loadSpecies(preserveSelection = false) {
-		if (!selectedDate) return;
-		
 		loading = true;
 		try {
-			const result = await media.speciesForDate(selectedDate);
+			const result = selectedDate ? await media.speciesForDate(selectedDate) : await media.species();
 			speciesForDate = result.species;
 			if (!preserveSelection) selectedSpecies = '';
 			files = [];
@@ -65,7 +67,16 @@
 	}
 
 	async function loadFiles() {
-		if (!selectedDate || !selectedSpecies) return;
+		if (!selectedSpecies) return;
+
+		if (!selectedDate) {
+			const latestDate = speciesForDate.find((sp) => sp.name === selectedSpecies)?.latest_date;
+			if (!latestDate) return;
+			selectedDate = latestDate;
+			await loadSpecies(true);
+		}
+
+		if (!selectedDate) return;
 		
 		loading = true;
 		try {
@@ -98,6 +109,11 @@
 
 	function handleDateChange() {
 		void loadSpecies();
+	}
+
+	async function openSpecies(species: RecordingSpeciesSummary) {
+		selectedSpecies = species.name;
+		await loadFiles();
 	}
 
 	function formatSize(bytes: number): string {
@@ -285,6 +301,8 @@
 				id="libraryDate"
 				bind:value={selectedDate}
 				dates={dates}
+				includeAll={true}
+				allLabel="All"
 				on:change={handleDateChange}
 				disabled={dates.length === 0}
 			/>
@@ -309,24 +327,28 @@
 	</div>
 
 	<!-- Species summary for selected date -->
-	{#if selectedDate && !selectedSpecies}
+	{#if !selectedSpecies}
 		<div class="mb-6">
 			<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-				Species for {selectedDate}
+				{selectedDate ? `Species for ${selectedDate}` : 'Species across all dates'}
 			</h2>
 			{#if speciesForDate.length === 0}
 				<div class="card p-8 text-center">
-					<p class="text-gray-600 dark:text-gray-400">No recordings for this date</p>
+					<p class="text-gray-600 dark:text-gray-400">
+						{selectedDate ? 'No recordings for this date' : 'No recordings found'}
+					</p>
 				</div>
 			{:else}
 				<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
 					{#each speciesForDate as sp}
 						<button
-							on:click={() => { selectedSpecies = sp.name; loadFiles(); }}
+							on:click={() => void openSpecies(sp)}
 							class="card p-4 text-left hover:shadow-lg transition-shadow"
 						>
 							<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{formatBirdName(sp.name)}</p>
-							<p class="text-sm text-gray-500 dark:text-gray-400">{sp.count} files</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								{sp.count} files{!selectedDate && sp.latest_date ? ` · latest ${sp.latest_date}` : ''}
+							</p>
 						</button>
 					{/each}
 				</div>

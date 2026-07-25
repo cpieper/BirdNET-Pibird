@@ -65,6 +65,20 @@ def media_type_for_path(file_path: Path) -> str:
     return media_types.get(file_path.suffix.lower(), 'audio/wav')
 
 
+def is_date_dir_name(name: str) -> bool:
+    """Return whether a directory name follows the recording date format."""
+    return len(name) == 10 and name.count('-') == 2
+
+
+def recording_filenames(directory: str | Path) -> list[str]:
+    """List recording files in a directory, excluding generated spectrogram images."""
+    return [
+        entry.name
+        for entry in os.scandir(directory)
+        if entry.is_file() and not entry.name.endswith('.png')
+    ]
+
+
 def normalize_temporal_zoom_rate(rate: str) -> tuple[str, float]:
     """Validate and normalize an allowed Temporal Zoom rate."""
     rate_key = rate.strip().rstrip('x')
@@ -449,14 +463,48 @@ async def list_dates_with_recordings(
         return {"dates": []}
 
     dates = []
-    for entry in os.listdir(by_date_dir):
-        entry_path = os.path.join(by_date_dir, entry)
-        # Check if it's a directory and looks like a date
-        if os.path.isdir(entry_path) and len(entry) == 10 and entry.count('-') == 2:
-            dates.append(entry)
+    for entry in os.scandir(by_date_dir):
+        if entry.is_dir() and is_date_dir_name(entry.name):
+            dates.append(entry.name)
 
     dates.sort(reverse=True)
     return {"dates": dates}
+
+
+@router.get("/media/species")
+async def list_species_with_recordings(
+    settings: Settings = Depends(get_settings),
+):
+    """List all species with recordings across all dates."""
+    by_date_dir = settings.by_date_dir
+
+    if not os.path.exists(by_date_dir):
+        return {"species": []}
+
+    species_by_name: dict[str, dict[str, object]] = {}
+    for date_entry in os.scandir(by_date_dir):
+        if not date_entry.is_dir() or not is_date_dir_name(date_entry.name):
+            continue
+
+        for species_entry in os.scandir(date_entry.path):
+            if not species_entry.is_dir() or species_entry.name.startswith('.'):
+                continue
+
+            count = len(recording_filenames(species_entry.path))
+            if count == 0:
+                continue
+
+            species = species_by_name.setdefault(
+                species_entry.name,
+                {"name": species_entry.name, "count": 0, "latest_date": date_entry.name},
+            )
+            species["count"] = int(species["count"]) + count
+            if date_entry.name > str(species["latest_date"]):
+                species["latest_date"] = date_entry.name
+
+    species = list(species_by_name.values())
+    species.sort(key=lambda item: int(item["count"]), reverse=True)
+    return {"species": species}
 
 
 @router.get("/media/dates/{date}/species")
@@ -471,13 +519,11 @@ async def list_species_for_date(
         raise HTTPException(status_code=404, detail="No recordings for this date")
 
     species = []
-    for entry in os.listdir(date_dir):
-        entry_path = os.path.join(date_dir, entry)
-        if os.path.isdir(entry_path) and not entry.startswith('.'):
-            # Count files
-            files = [f for f in os.listdir(entry_path) if not f.endswith('.png')]
+    for entry in os.scandir(date_dir):
+        if entry.is_dir() and not entry.name.startswith('.'):
+            files = recording_filenames(entry.path)
             species.append({
-                "name": entry,
+                "name": entry.name,
                 "count": len(files),
             })
 
@@ -538,14 +584,13 @@ async def list_files_for_species(
         raise HTTPException(status_code=404, detail="No recordings found")
 
     files = []
-    for filename in os.listdir(species_dir):
-        if not filename.endswith('.png'):
-            filepath = os.path.join(species_dir, filename)
-            files.append({
-                "name": filename,
-                "has_spectrogram": os.path.exists(filepath + '.png'),
-                "size": os.path.getsize(filepath),
-            })
+    for filename in recording_filenames(species_dir):
+        filepath = os.path.join(species_dir, filename)
+        files.append({
+            "name": filename,
+            "has_spectrogram": os.path.exists(filepath + '.png'),
+            "size": os.path.getsize(filepath),
+        })
 
     files.sort(key=lambda x: x['name'], reverse=True)
     return {"date": date, "species": species, "files": files}

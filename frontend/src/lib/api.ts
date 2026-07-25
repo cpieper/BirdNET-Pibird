@@ -198,7 +198,9 @@ export const media = {
 
 	dates: () => request<{ dates: string[] }>('/media/dates'),
 
-	speciesForDate: (date: string) => request<{ date: string; species: { name: string; count: number }[] }>(`/media/dates/${date}/species`),
+	species: () => request<{ species: RecordingSpeciesSummary[] }>('/media/species'),
+
+	speciesForDate: (date: string) => request<{ date: string; species: RecordingSpeciesSummary[] }>(`/media/dates/${date}/species`),
 
 	filesForSpecies: (date: string, species: string) =>
 		request<{ date: string; species: string; files: { name: string; has_spectrogram: boolean; size: number }[] }>(
@@ -506,6 +508,12 @@ export interface SpeciesDetectionsResponse {
 export interface SpeciesListMembership {
 	species: string;
 	lists: Record<'include' | 'exclude' | 'whitelist' | 'confirmed', boolean>;
+}
+
+export interface RecordingSpeciesSummary {
+	name: string;
+	count: number;
+	latest_date?: string;
 }
 
 export interface Config {
