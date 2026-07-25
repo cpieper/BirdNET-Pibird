@@ -436,40 +436,49 @@
 		</div>
 	{:else}
 		<!-- Stats Grid -->
-		<div class="grid grid-cols-3 gap-3 mb-4">
-			<StatsCard
-				value={stats?.todays_count || 0}
-				label="Today"
-				icon="today"
-				href={insightsHref('today')}
-				compact={true}
-			/>
-			<StatsCard
-				value={stats?.hour_count || 0}
-				label="Last Hour"
-				icon="hour"
-				href={insightsHref('hour')}
-				compact={true}
-			/>
-			<StatsCard
-				value={stats?.new_species_today || 0}
-				label="New Species"
-				icon="new"
-				href={insightsHref('new_species_today')}
-				compact={true}
-			/>
-		</div>
-
-		<div class="mb-8 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
-			<a href={insightsHref('total')} class="hover:text-primary-700 hover:underline dark:hover:text-primary-300">
-				{stats?.total_count || 0} total detections
-			</a>
-			<a href={insightsHref('species_today')} class="hover:text-primary-700 hover:underline dark:hover:text-primary-300">
-				{stats?.todays_species_tally || 0} species today
-			</a>
-			<a href={insightsHref('all_species')} class="hover:text-primary-700 hover:underline dark:hover:text-primary-300">
-				{stats?.species_tally || 0} all-time species
-			</a>
+		<div class="mb-8 grid grid-cols-3 gap-3">
+			<div class="min-w-0 self-start">
+				<StatsCard
+					value={stats?.todays_count || 0}
+					label="Today"
+					icon="today"
+					href={insightsHref('today')}
+					compact={true}
+				/>
+				<div class="mt-2 px-1 text-sm text-gray-600 dark:text-gray-400">
+					<a href={insightsHref('total')} class="hover:text-primary-700 hover:underline dark:hover:text-primary-300">
+						{stats?.total_count || 0} total detections
+					</a>
+				</div>
+			</div>
+			<div class="min-w-0 self-start">
+				<StatsCard
+					value={stats?.hour_count || 0}
+					label="Last Hour"
+					icon="hour"
+					href={insightsHref('hour')}
+					compact={true}
+				/>
+			</div>
+			<div class="min-w-0 self-start">
+				<StatsCard
+					value={stats?.todays_species_tally || 0}
+					label="Species Today"
+					icon="species"
+					href={insightsHref('species_today')}
+					compact={true}
+				/>
+				<div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1 text-sm text-gray-600 dark:text-gray-400">
+					<a href={insightsHref('all_species')} class="hover:text-primary-700 hover:underline dark:hover:text-primary-300">
+						{stats?.species_tally || 0} all-time species
+					</a>
+					{#if (stats?.new_species_today || 0) > 0}
+						<a href={insightsHref('new_species_today')} class="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
+							{stats?.new_species_today || 0} new species
+						</a>
+					{/if}
+				</div>
+			</div>
 		</div>
 
 		{#if newSpeciesTodayDetections.length > 0}
