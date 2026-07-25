@@ -2,7 +2,7 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { detections, health, species as speciesApi, system as systemApi, type Detection, type DetectionStats, type SpeciesSummary, type RangeChartData } from '$lib/api';
 	import { StatsCard, DetectionCard, ExternalLinks, SpeciesImage, Modal } from '$lib/components';
-	import { auth, customImage, customImageTitle, setSiteIdentity, siteName, toasts } from '$lib/stores';
+	import { auth, setSiteIdentity, siteName, toasts } from '$lib/stores';
 
 	let ChartJS: typeof import('chart.js/auto').default;
 
@@ -38,18 +38,6 @@
 	let showLiveAudioLoginModal = false;
 	let liveAudioPassword = '';
 	let liveAudioElement: HTMLAudioElement | null = null;
-	let stationLatitude: number | null = null;
-	let stationLongitude: number | null = null;
-	let latestDetection: Detection | null = null;
-	let stationImageFailed = false;
-
-	$: stationImageSrc = $customImage && !stationImageFailed ? $customImage : '/bird.png';
-	$: stationImageAlt = $customImageTitle || `${$siteName} station image`;
-	$: stationLocation = formatStationLocation(stationLatitude, stationLongitude);
-	$: latestDetectionLabel = latestDetection
-		? `${latestDetection.Com_Name} at ${formatTime(latestDetection.Time)}`
-		: 'Waiting for the next detection';
-	$: if ($customImage) stationImageFailed = false;
 
 	function detectTheme() {
 		isDark = document.documentElement.classList.contains('dark');
@@ -58,18 +46,6 @@
 	function todayStr(): string {
 		const d = new Date();
 		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-	}
-
-	function formatTime(time: string): string {
-		return time.slice(0, 5);
-	}
-
-	function formatStationLocation(lat: number | null, lon: number | null): string {
-		if (lat === null || lon === null || !Number.isFinite(lat) || !Number.isFinite(lon)) {
-			return '';
-		}
-		if (lat === 0 && lon === 0) return '';
-		return `lat ${lat.toFixed(3)}, lon ${lon.toFixed(3)}`;
 	}
 
 	function groupLatest(items: Detection[]): DetectionGroup[] {
@@ -172,9 +148,6 @@
 			newSpeciesTodayDetections = newSpeciesData;
 			newSpeciesTodaySet = pinnedSpecies;
 			groupedDetections = sortDetectionGroups(groupLatest(mergedDetections), pinnedSpecies);
-			latestDetection = detectionsData.detections[0] || null;
-			stationLatitude = infoData.latitude;
-			stationLongitude = infoData.longitude;
 			setSiteIdentity({
 				siteName: infoData.site_name,
 				customImage: infoData.custom_image,
@@ -393,43 +366,6 @@
 </svelte:head>
 
 <div class="container mx-auto px-4 py-6 overflow-x-hidden">
-	<!-- Header -->
-	<section class="mb-6 rounded-lg border border-gray-200/80 bg-white p-4 shadow-sm dark:border-dark-border/80 dark:bg-dark-card">
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-			<div class="flex min-w-0 items-center gap-4">
-				<img
-					src={stationImageSrc}
-					alt={stationImageAlt}
-					class="h-16 w-16 flex-shrink-0 rounded-lg object-cover ring-1 ring-gray-200 dark:ring-dark-border"
-					on:error={() => (stationImageFailed = true)}
-				/>
-				<div class="min-w-0">
-					<p class="text-xs font-medium uppercase tracking-wide text-primary-700 dark:text-primary-300">
-						Live station
-					</p>
-					<h1 class="truncate text-2xl font-bold text-gray-950 dark:text-gray-50 sm:text-3xl">
-						{$siteName}
-					</h1>
-					<div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
-						{#if stationLocation}
-							<span>{stationLocation}</span>
-						{/if}
-						<span>{latestDetectionLabel}</span>
-					</div>
-				</div>
-			</div>
-			<div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-				<button class="btn-secondary btn-sm" on:click={openLiveAudio} disabled={liveAudioLoading}>
-					{#if liveAudioLoading}
-						<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></span>
-					{/if}
-					Listen Live
-				</button>
-				<a href="/detections" class="btn-primary btn-sm">Review</a>
-			</div>
-		</div>
-	</section>
-
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
@@ -678,6 +614,12 @@
 				<div class="flex flex-wrap items-center gap-2">
 					<a href="/recordings" class="btn-secondary btn-sm">Open Library</a>
 					<a href="/history" class="btn-secondary btn-sm">Open Insights</a>
+					<button class="btn-secondary btn-sm" on:click={openLiveAudio} disabled={liveAudioLoading}>
+						{#if liveAudioLoading}
+							<span class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></span>
+						{/if}
+						Listen Live
+					</button>
 				</div>
 			</div>
 			{#if liveAudioVisible && liveAudioUrl}

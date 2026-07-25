@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { system as systemApi } from '$lib/api';
+	import { health, system as systemApi } from '$lib/api';
 	import { page } from '$app/stores';
-	import { customImage, siteName } from '$lib/stores';
+	import { customImage, setSiteIdentity, siteName } from '$lib/stores';
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	const navItems = [
@@ -18,10 +18,37 @@
 	let statusTimer: ReturnType<typeof setInterval> | undefined;
 	let visibilityHandler: (() => void) | undefined;
 	let logoImageFailed = false;
+	let stationLatitude: number | null = null;
+	let stationLongitude: number | null = null;
 
 	$: currentPath = $page.url.pathname;
 	$: logoSrc = $customImage && !logoImageFailed ? $customImage : '/bird.png';
+	$: stationLocation = formatStationLocation(stationLatitude, stationLongitude);
 	$: if ($customImage) logoImageFailed = false;
+
+	function formatStationLocation(lat: number | null, lon: number | null): string {
+		if (lat === null || lon === null || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+			return '';
+		}
+		if (lat === 0 && lon === 0) return '';
+		return `near ${lat.toFixed(1)}, ${lon.toFixed(1)}`;
+	}
+
+	async function refreshStationInfo() {
+		try {
+			const info = await health.info();
+			stationLatitude = info.latitude;
+			stationLongitude = info.longitude;
+			setSiteIdentity({
+				siteName: info.site_name,
+				customImage: info.custom_image,
+				customImageTitle: info.custom_image_title,
+			});
+		} catch {
+			stationLatitude = null;
+			stationLongitude = null;
+		}
+	}
 
 	async function refreshStatus() {
 		try {
@@ -35,6 +62,7 @@
 	}
 
 	onMount(() => {
+		void refreshStationInfo();
 		void refreshStatus();
 		statusTimer = setInterval(() => {
 			if (document.hidden) return;
@@ -64,7 +92,12 @@
 				class="w-8 h-8 rounded-md object-cover ring-1 ring-white/30"
 				on:error={() => (logoImageFailed = true)}
 			/>
-			<span class="max-w-64 truncate text-xl font-bold">{$siteName}</span>
+			<span class="flex min-w-0 flex-col">
+				<span class="max-w-64 truncate text-lg font-bold leading-tight">{$siteName}</span>
+				<span class="hidden max-w-72 truncate text-[11px] font-medium uppercase tracking-wide text-white/70 lg:block">
+					Live station{stationLocation ? ` · ${stationLocation}` : ''}
+				</span>
+			</span>
 		</a>
 
 		<!-- Navigation Links -->
@@ -114,7 +147,12 @@
 				class="w-7 h-7 rounded-md object-cover ring-1 ring-white/30"
 				on:error={() => (logoImageFailed = true)}
 			/>
-			<span class="max-w-[11rem] truncate text-lg font-bold">{$siteName}</span>
+			<span class="flex min-w-0 flex-col">
+				<span class="max-w-[11rem] truncate text-base font-bold leading-tight">{$siteName}</span>
+				<span class="max-w-[11rem] truncate text-[10px] font-medium uppercase tracking-wide text-white/70">
+					Live station{stationLocation ? ` · ${stationLocation}` : ''}
+				</span>
+			</span>
 		</a>
 
 		<div class="flex items-center gap-2">
