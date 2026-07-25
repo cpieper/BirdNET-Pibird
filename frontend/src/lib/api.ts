@@ -514,6 +514,8 @@ export interface RecordingSpeciesSummary {
 	name: string;
 	count: number;
 	latest_date?: string;
+	sci_name?: string;
+	com_name?: string;
 }
 
 export interface Config {

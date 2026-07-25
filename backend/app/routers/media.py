@@ -79,6 +79,40 @@ def recording_filenames(directory: str | Path) -> list[str]:
     ]
 
 
+def species_metadata_by_folder(settings: Settings, date: str | None = None) -> dict[str, dict[str, str]]:
+    """Return latest species metadata keyed by recording folder name."""
+    if not os.path.exists(settings.db_path):
+        return {}
+
+    where_clause = "WHERE Date = ?" if date else ""
+    params = (date,) if date else ()
+    conn = sqlite3.connect(f"file:{settings.db_path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT Date, Time, File_Name, Sci_Name, Com_Name
+            FROM detections
+            {where_clause}
+            ORDER BY Date DESC, Time DESC
+            """,
+            params,
+        ).fetchall()
+    finally:
+        conn.close()
+
+    metadata: dict[str, dict[str, str]] = {}
+    for row in rows:
+        folder = extract_species_from_filename(row["File_Name"])
+        if folder in metadata:
+            continue
+        metadata[folder] = {
+            "sci_name": row["Sci_Name"],
+            "com_name": row["Com_Name"],
+        }
+    return metadata
+
+
 def normalize_temporal_zoom_rate(rate: str) -> tuple[str, float]:
     """Validate and normalize an allowed Temporal Zoom rate."""
     rate_key = rate.strip().rstrip('x')
@@ -481,6 +515,7 @@ async def list_species_with_recordings(
     if not os.path.exists(by_date_dir):
         return {"species": []}
 
+    metadata_by_folder = species_metadata_by_folder(settings)
     species_by_name: dict[str, dict[str, object]] = {}
     for date_entry in os.scandir(by_date_dir):
         if not date_entry.is_dir() or not is_date_dir_name(date_entry.name):
@@ -496,7 +531,12 @@ async def list_species_with_recordings(
 
             species = species_by_name.setdefault(
                 species_entry.name,
-                {"name": species_entry.name, "count": 0, "latest_date": date_entry.name},
+                {
+                    "name": species_entry.name,
+                    "count": 0,
+                    "latest_date": date_entry.name,
+                    **metadata_by_folder.get(species_entry.name, {}),
+                },
             )
             species["count"] = int(species["count"]) + count
             if date_entry.name > str(species["latest_date"]):
@@ -518,13 +558,16 @@ async def list_species_for_date(
     if not os.path.exists(date_dir):
         raise HTTPException(status_code=404, detail="No recordings for this date")
 
+    metadata_by_folder = species_metadata_by_folder(settings, date)
     species = []
     for entry in os.scandir(date_dir):
         if entry.is_dir() and not entry.name.startswith('.'):
             files = recording_filenames(entry.path)
+            metadata = metadata_by_folder.get(entry.name, {})
             species.append({
                 "name": entry.name,
                 "count": len(files),
+                **metadata,
             })
 
     species.sort(key=lambda x: x['count'], reverse=True)

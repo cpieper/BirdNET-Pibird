@@ -793,11 +793,11 @@
 
 				<!-- Top species list -->
 				<div class="card md:col-span-2">
-					<div class="card-header flex items-center justify-between">
+					<div class="card-header flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
 						<h2 class="font-semibold text-gray-900 dark:text-gray-100">
 							Top Species
 						</h2>
-						<div class="flex items-center gap-2">
+						<div class="flex flex-wrap items-center gap-2">
 							{#if selectedSpecies.size > 0 && rangeMode !== 'year'}
 								<button
 									on:click={clearSelectedSpecies}
@@ -813,11 +813,11 @@
 					</div>
 					<div class="divide-y divide-gray-200 dark:divide-dark-border">
 						{#each chartData.top_species as sp, i}
-							<div class="flex items-center gap-0">
+							<div class="flex flex-col gap-0 sm:flex-row sm:items-center">
 								<button
 									on:click={() => toggleSpecies(sp.sci_name)}
 									disabled={rangeMode === 'year'}
-									class="flex items-center gap-4 flex-1 min-w-0 px-6 py-3 transition-colors
+									class="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors sm:gap-4 sm:px-6
 										{selectedSpecies.has(sp.sci_name)
 											? 'bg-gray-100 dark:bg-dark-border'
 											: 'hover:bg-gray-50 dark:hover:bg-dark-border/50'}
@@ -833,14 +833,14 @@
 										<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{sp.com_name}</p>
 										<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">{sp.sci_name}</p>
 									</div>
-									<div class="flex items-center gap-4 flex-shrink-0">
+									<div class="flex flex-shrink-0 items-center gap-3 sm:gap-4">
 										<span class="badge-primary">{(sp.max_confidence * 100).toFixed(0)}%</span>
 										<div class="text-right">
 											<span class="text-lg font-semibold text-primary-600 dark:text-primary-400">{sp.count}</span>
 										</div>
 									</div>
 								</button>
-								<div class="px-3 py-3 flex items-center gap-2 flex-shrink-0">
+								<div class="flex flex-shrink-0 items-center gap-2 px-4 pb-3 pt-0 sm:px-3 sm:py-3">
 									<ExternalLinks sciName={sp.sci_name} comName={sp.com_name} compact={true} />
 									<a
 										href="/species/{encodeURIComponent(sp.sci_name)}"

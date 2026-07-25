@@ -8,7 +8,7 @@
 		type SpeciesExternalLinks,
 	} from '$lib/api';
 	import { verifyPasswordLogin } from '$lib/auth';
-	import { AudioPlayer, DatePicker, ExternalLinks, Modal } from '$lib/components';
+	import { AudioPlayer, DatePicker, ExternalLinks, Modal, SpeciesImage } from '$lib/components';
 	import { auth, toasts } from '$lib/stores';
 	import { formatBirdName } from '$lib';
 
@@ -33,6 +33,10 @@
 	let passwordInput = '';
 	let expandedSpectrogramFiles = new Set<string>();
 	let postLoginRedirect: string | null = null;
+	$: selectedSpeciesSummary = speciesForDate.find((sp) => sp.name === selectedSpecies);
+	$: selectedSpeciesLabel = selectedSpeciesSummary
+		? speciesDisplayName(selectedSpeciesSummary)
+		: formatBirdName(selectedSpecies);
 
 	async function loadDates() {
 		try {
@@ -114,6 +118,14 @@
 	async function openSpecies(species: RecordingSpeciesSummary) {
 		selectedSpecies = species.name;
 		await loadFiles();
+	}
+
+	function speciesDisplayName(species: RecordingSpeciesSummary): string {
+		return species.com_name || formatBirdName(species.name);
+	}
+
+	function speciesScientificName(species: RecordingSpeciesSummary): string {
+		return species.sci_name || '';
 	}
 
 	function formatSize(bytes: number): string {
@@ -287,9 +299,9 @@
 		<div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
 			<div>
 				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Library</h1>
-				<p class="mt-1 text-gray-600 dark:text-gray-400">Historical file management</p>
+				<p class="mt-1 text-gray-600 dark:text-gray-400">Recording playback, spectrogram inspection, and file tools</p>
 			</div>
-			<button type="button" class="btn-secondary" on:click={openFileManager}>Open File Manager</button>
+			<button type="button" class="btn-secondary self-start md:self-auto" on:click={openFileManager}>Open File Manager</button>
 		</div>
 	</div>
 
@@ -329,9 +341,17 @@
 	<!-- Species summary for selected date -->
 	{#if !selectedSpecies}
 		<div class="mb-6">
-			<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-				{selectedDate ? `Species for ${selectedDate}` : 'Species across all dates'}
-			</h2>
+			<div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+				<div>
+					<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+						{selectedDate ? `Recording species for ${selectedDate}` : 'Recording species'}
+					</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400">
+						Open a species to inspect saved audio, spectrograms, and shifted clips.
+					</p>
+				</div>
+				<span class="text-sm text-gray-500 dark:text-gray-400">{speciesForDate.length} species</span>
+			</div>
 			{#if speciesForDate.length === 0}
 				<div class="card p-8 text-center">
 					<p class="text-gray-600 dark:text-gray-400">
@@ -339,16 +359,44 @@
 					</p>
 				</div>
 			{:else}
-				<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+				<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
 					{#each speciesForDate as sp}
 						<button
 							on:click={() => void openSpecies(sp)}
-							class="card p-4 text-left hover:shadow-lg transition-shadow"
+							class="card group flex min-w-0 items-center gap-3 p-3 text-left transition-shadow hover:border-primary-200 hover:shadow-md dark:hover:border-primary-900"
 						>
-							<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{formatBirdName(sp.name)}</p>
-							<p class="text-sm text-gray-500 dark:text-gray-400">
-								{sp.count} files{!selectedDate && sp.latest_date ? ` · latest ${sp.latest_date}` : ''}
-							</p>
+							{#if sp.sci_name}
+								<SpeciesImage sciName={sp.sci_name} size="xs" />
+							{:else}
+								<span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-dark-nav dark:text-gray-500">
+									<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7.5A2.5 2.5 0 015.5 5H10l2 2h6.5A2.5 2.5 0 0121 9.5v7A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-9z" />
+									</svg>
+								</span>
+							{/if}
+							<span class="min-w-0 flex-1">
+								<span class="block truncate font-semibold text-gray-900 dark:text-gray-100">
+									{speciesDisplayName(sp)}
+								</span>
+								{#if speciesScientificName(sp)}
+									<span class="block truncate text-sm italic text-gray-500 dark:text-gray-400">
+										{speciesScientificName(sp)}
+									</span>
+								{/if}
+								<span class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+									<span class="rounded-md bg-gray-100 px-2 py-0.5 font-medium text-gray-600 dark:bg-dark-nav dark:text-gray-300">
+										{sp.count} {sp.count === 1 ? 'file' : 'files'}
+									</span>
+									{#if !selectedDate && sp.latest_date}
+										<span>Latest {sp.latest_date}</span>
+									{/if}
+								</span>
+							</span>
+							<span class="flex-shrink-0 text-primary-600 transition-transform group-hover:translate-x-0.5 dark:text-primary-400" aria-hidden="true">
+								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+								</svg>
+							</span>
 						</button>
 					{/each}
 				</div>
@@ -359,23 +407,23 @@
 	<!-- Files list -->
 	{#if selectedSpecies}
 		<div>
-			<div class="flex items-center justify-between mb-4">
+			<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div>
 					<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-						{formatBirdName(selectedSpecies)} - {selectedDate}
+						{selectedSpeciesLabel} - {selectedDate}
 					</h2>
 					<div class="mt-1">
 						<ExternalLinks links={speciesLinks} compact={true} />
 					</div>
 				</div>
-				<div class="flex items-center gap-3">
-					<label class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+				<div class="flex flex-wrap items-center gap-2">
+					<label class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 dark:border-dark-border dark:bg-dark-card dark:text-gray-300">
 						<input type="checkbox" checked={showShifted} on:change={handleShowShiftedToggle} />
 						<span>Show shifted</span>
 					</label>
 				<button
 					on:click={() => { selectedSpecies = ''; files = []; }}
-					class="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+					class="btn-ghost btn-sm"
 				>
 					← Back to species
 				</button>
@@ -409,13 +457,13 @@
 							'0.5': media.temporalZoomPrepareUrl(selectedDate, selectedSpecies, file.name, 0.5),
 						}}
 						{@const spectrogramExpanded = expandedSpectrogramFiles.has(file.name)}
-						<div class="card p-4">
-							<div class="flex items-start gap-4">
+						<div class="card p-3 sm:p-4">
+							<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
 								<!-- Spectrogram thumbnail -->
 								{#if file.has_spectrogram && !spectrogramExpanded}
 									<button
 										type="button"
-										class="group relative block w-32 h-20 flex-shrink-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dark-card"
+										class="group relative block h-28 w-full flex-shrink-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 sm:h-20 sm:w-32 dark:focus-visible:ring-offset-dark-card"
 										on:click={() => toggleSpectrogram(file.name)}
 										aria-expanded={spectrogramExpanded}
 										aria-label={`Expand spectrogram for ${file.name}`}
@@ -424,7 +472,7 @@
 										<img
 											src={spectrogramUrl}
 											alt="Spectrogram"
-											class="w-32 h-20 object-cover rounded-lg bg-gray-200 dark:bg-dark-border"
+											class="h-28 w-full rounded-lg bg-gray-200 object-cover sm:h-20 sm:w-32 dark:bg-dark-border"
 											loading="lazy"
 										/>
 										<span class="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm ring-1 ring-gray-200 backdrop-blur transition-colors group-hover:bg-white dark:bg-gray-900/85 dark:text-gray-200 dark:ring-gray-700 dark:group-hover:bg-gray-900">
@@ -434,18 +482,18 @@
 										</span>
 									</button>
 								{:else if file.has_spectrogram}
-									<div class="w-32 h-20 flex-shrink-0"></div>
+									<div class="hidden h-20 w-32 flex-shrink-0 sm:block"></div>
 								{:else}
-									<div class="w-32 h-20 bg-gray-200 dark:bg-dark-border rounded-lg flex items-center justify-center flex-shrink-0">
+									<div class="flex h-24 w-full flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 sm:h-20 sm:w-32 dark:bg-dark-border">
 										<span class="text-xs text-gray-500">No spectrogram</span>
 									</div>
 								{/if}
 
 								<!-- File info -->
-									<div class="flex-1 min-w-0">
-										<div class="flex items-center justify-between gap-2">
+									<div class="min-w-0 flex-1">
+										<div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 											<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{file.name}</p>
-											<div class="flex items-center gap-2">
+											<div class="flex flex-wrap items-center gap-2">
 												{#if shiftedAvailable[file.name]}
 													<button
 														class="btn-secondary btn-sm"

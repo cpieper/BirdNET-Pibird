@@ -159,12 +159,12 @@
 </svelte:head>
 
 <div class="container mx-auto px-4 py-6">
-	<div class="mb-6 flex items-center justify-between gap-4">
+	<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<div>
 			<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Species</h1>
 			<p class="text-gray-600 dark:text-gray-400 mt-1">{subtitle}</p>
 		</div>
-		<a href="/species/manage" class="btn-secondary">Manage Lists</a>
+		<a href="/species/manage" class="btn-secondary self-start sm:self-auto">Manage Lists</a>
 	</div>
 
 	<!-- Filters -->

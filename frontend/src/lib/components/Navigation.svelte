@@ -3,14 +3,15 @@
 	import { health, system as systemApi } from '$lib/api';
 	import { page } from '$app/stores';
 	import { customImage, setSiteIdentity, siteName } from '$lib/stores';
+	import NavIcon, { type NavIconName } from './NavIcon.svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 
-	const navItems = [
+	const navItems: { href: string; label: string; icon: NavIconName }[] = [
 		{ href: '/', label: 'Dashboard', icon: 'home' },
-		{ href: '/detections', label: 'Review', icon: 'list' },
-		{ href: '/recordings', label: 'Library', icon: 'mic' },
-		{ href: '/history', label: 'Insights', icon: 'calendar' },
-		{ href: '/species', label: 'Species', icon: 'bird' },
+		{ href: '/detections', label: 'Review', icon: 'inspect' },
+		{ href: '/species', label: 'Species', icon: 'species' },
+		{ href: '/history', label: 'Insights', icon: 'insights' },
+		{ href: '/recordings', label: 'Library', icon: 'library' },
 	];
 
 	let statusState: 'online' | 'degraded' | 'offline' = 'online';
@@ -106,10 +107,11 @@
 				<a
 					href={item.href}
 					aria-current={currentPath === item.href ? 'page' : undefined}
-					class="px-4 py-2 rounded-lg transition-colors {currentPath === item.href
+					class="inline-flex items-center gap-2 rounded-lg px-3 py-2 transition-colors {currentPath === item.href
 						? 'bg-white/20 text-white'
 						: 'text-white/90 hover:text-white hover:bg-white/10'}"
 				>
+					<NavIcon name={item.icon} className="h-4 w-4" />
 					{item.label}
 				</a>
 			{/each}
@@ -186,27 +188,7 @@
 					? 'text-primary-600 dark:text-primary-400'
 					: 'text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400'}"
 			>
-				{#if item.icon === 'home'}
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-					</svg>
-				{:else if item.icon === 'list'}
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-					</svg>
-				{:else if item.icon === 'mic'}
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-					</svg>
-				{:else if item.icon === 'calendar'}
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-					</svg>
-				{:else if item.icon === 'bird'}
-					<svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-						<path d="M12 2C7.58 2 4 5.58 4 10c0 3.31 2.69 6 6 6h1v4l3-3 3 3v-4h1c3.31 0 6-2.69 6-6 0-4.42-3.58-8-8-8zm-2 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm4 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
-					</svg>
-				{/if}
+				<NavIcon name={item.icon} className="h-6 w-6" />
 				<span class="text-xs mt-1">{item.label}</span>
 			</a>
 		{/each}

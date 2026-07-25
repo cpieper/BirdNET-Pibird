@@ -372,7 +372,7 @@
 		</div>
 	{:else}
 		<!-- Stats Grid -->
-		<div class="mb-8 grid grid-cols-3 gap-3">
+		<div class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
 			<div class="min-w-0 self-start">
 				<StatsCard
 					value={stats?.todays_count || 0}
