@@ -444,9 +444,9 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+		<div class="detection-masonry">
 			{#each allDetections as detection (detection.File_Name)}
-				<div class="space-y-2 min-w-0">
+				<div class="detection-masonry-item space-y-2 min-w-0">
 					<DetectionCard
 						{detection}
 						href={detectionRecordingsHref(detection)}

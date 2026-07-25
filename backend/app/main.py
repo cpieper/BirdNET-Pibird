@@ -64,7 +64,7 @@ def frontend_html_response(path: Path) -> HTMLResponse:
     escaped_site_name = html.escape(site_name, quote=True)
     bootstrap = (
         '<script>'
-        f'window.__BIRDNET_BOOTSTRAP__={script_safe_json({"siteName": site_name})};'
+        f'window.__BIRDNET_BOOTSTRAP__={script_safe_json({"siteName": site_name, "customImage": settings.custom_image, "customImageTitle": settings.custom_image_title})};'
         '</script>'
     )
 
@@ -145,6 +145,8 @@ async def app_info():
         "latitude": settings.latitude,
         "longitude": settings.longitude,
         "model": settings.model,
+        "custom_image": settings.custom_image,
+        "custom_image_title": settings.custom_image_title,
     }
 
 

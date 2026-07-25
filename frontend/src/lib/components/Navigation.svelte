@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { system as systemApi } from '$lib/api';
 	import { page } from '$app/stores';
-	import { siteName } from '$lib/stores';
+	import { customImage, siteName } from '$lib/stores';
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	const navItems = [
@@ -17,8 +17,11 @@
 	let statusText = 'Checking';
 	let statusTimer: ReturnType<typeof setInterval> | undefined;
 	let visibilityHandler: (() => void) | undefined;
+	let logoImageFailed = false;
 
 	$: currentPath = $page.url.pathname;
+	$: logoSrc = $customImage && !logoImageFailed ? $customImage : '/bird.png';
+	$: if ($customImage) logoImageFailed = false;
 
 	async function refreshStatus() {
 		try {
@@ -51,18 +54,16 @@
 </script>
 
 <!-- Desktop Navigation -->
-<nav class="hidden md:flex fixed top-0 left-0 right-0 h-16 shadow-lg z-30 overflow-hidden">
-	<div class="absolute inset-0 bg-gradient-to-r from-primary-700 via-primary-700 to-primary-900 dark:from-dark-nav dark:via-dark-nav dark:to-black pointer-events-none"></div>
-	<img
-		src="/bnp.png"
-		alt=""
-		aria-hidden="true"
-		class="hidden lg:block absolute top-0 right-0 h-full w-80 object-cover object-left opacity-15 pointer-events-none select-none"
-	/>
+<nav class="hidden md:flex fixed top-0 left-0 right-0 h-16 border-b border-primary-900/20 bg-primary-800 shadow-sm dark:border-black/30 dark:bg-dark-nav z-30 overflow-hidden">
 	<div class="relative container mx-auto px-4 flex items-center justify-between">
 		<!-- Logo -->
 		<a href="/" class="flex items-center gap-3 text-white">
-			<img src="/bird.png" alt="{$siteName} logo" class="w-8 h-8 rounded-md object-cover ring-1 ring-white/30" />
+			<img
+				src={logoSrc}
+				alt="{$siteName} logo"
+				class="w-8 h-8 rounded-md object-cover ring-1 ring-white/30"
+				on:error={() => (logoImageFailed = true)}
+			/>
 			<span class="max-w-64 truncate text-xl font-bold">{$siteName}</span>
 		</a>
 
@@ -104,16 +105,15 @@
 </nav>
 
 <!-- Mobile Navigation -->
-<nav class="md:hidden fixed top-0 left-0 right-0 h-14 bg-primary-700 dark:bg-dark-nav shadow-lg z-30 overflow-hidden">
-	<img
-		src="/bnp.png"
-		alt=""
-		aria-hidden="true"
-		class="absolute top-0 right-0 h-full w-36 object-cover object-left opacity-20 pointer-events-none select-none"
-	/>
+<nav class="md:hidden fixed top-0 left-0 right-0 h-14 border-b border-primary-900/20 bg-primary-800 shadow-sm dark:border-black/30 dark:bg-dark-nav z-30 overflow-hidden">
 	<div class="relative h-full px-4 flex items-center justify-between">
 		<a href="/" class="flex items-center gap-2 text-white">
-			<img src="/bird.png" alt="{$siteName} logo" class="w-7 h-7 rounded-md object-cover ring-1 ring-white/30" />
+			<img
+				src={logoSrc}
+				alt="{$siteName} logo"
+				class="w-7 h-7 rounded-md object-cover ring-1 ring-white/30"
+				on:error={() => (logoImageFailed = true)}
+			/>
 			<span class="max-w-[11rem] truncate text-lg font-bold">{$siteName}</span>
 		</a>
 

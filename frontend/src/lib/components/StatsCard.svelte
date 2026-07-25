@@ -16,7 +16,7 @@
 </script>
 
 {#if href}
-	<a href={href} class="stat-card {compact ? 'stat-card-compact' : ''} block hover:shadow-lg transition-shadow">
+	<a href={href} class="stat-card {compact ? 'stat-card-compact' : ''} block hover:border-primary-200 hover:shadow-md transition-shadow dark:hover:border-primary-900">
 		<div class="flex items-start justify-between gap-2">
 			<div>
 				<p class="stat-value">{value}</p>

@@ -78,7 +78,7 @@ import { goto } from '$app/navigation';
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
-	class="card w-full max-w-full p-4 fade-in {href ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}"
+	class="card w-full max-w-full p-4 fade-in {href ? 'cursor-pointer hover:border-primary-200 hover:shadow-md transition-shadow dark:hover:border-primary-900' : ''}"
 	on:click={handleCardClick}
 >
 	<div class="flex gap-4">

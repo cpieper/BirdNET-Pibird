@@ -252,9 +252,9 @@
 			<p class="text-gray-600 dark:text-gray-400">{emptyMessage}</p>
 		</div>
 	{:else}
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+		<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
 			{#each filteredSpecies as sp (sp.Sci_Name)}
-				<div class="card p-4 flex gap-4 hover:shadow-lg transition-shadow">
+				<div class="card flex gap-3 p-3 transition-shadow hover:border-primary-200 hover:shadow-md dark:hover:border-primary-900">
 					<SpeciesImage sciName={sp.Sci_Name} size="sm" />
 					<div class="flex-1 min-w-0">
 						<a href="/species/{encodeURIComponent(sp.Sci_Name)}">

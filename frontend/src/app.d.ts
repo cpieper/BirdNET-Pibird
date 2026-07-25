@@ -4,6 +4,8 @@ declare global {
 	interface Window {
 		__BIRDNET_BOOTSTRAP__?: {
 			siteName?: string;
+			customImage?: string;
+			customImageTitle?: string;
 		};
 	}
 

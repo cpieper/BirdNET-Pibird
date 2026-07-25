@@ -48,7 +48,7 @@
 
 	/* Card styles */
 	.card {
-		@apply bg-white dark:bg-dark-card rounded-xl shadow-md overflow-hidden;
+		@apply bg-white dark:bg-dark-card rounded-lg border border-gray-200/80 dark:border-dark-border/80 shadow-sm overflow-hidden;
 	}
 
 	.card-header {
@@ -140,7 +140,23 @@
 
 	/* Detection card */
 	.detection-card {
-		@apply card p-4 flex items-center gap-4 hover:shadow-lg transition-shadow;
+		@apply card p-4 flex items-center gap-4 hover:shadow-md transition-shadow;
+	}
+
+	.detection-masonry {
+		column-count: 1;
+		column-gap: 1rem;
+	}
+
+	@screen xl {
+		.detection-masonry {
+			column-count: 2;
+		}
+	}
+
+	.detection-masonry-item {
+		break-inside: avoid;
+		margin-bottom: 1rem;
 	}
 
 	/* Audio player */

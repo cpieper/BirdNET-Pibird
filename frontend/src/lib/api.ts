@@ -368,7 +368,17 @@ export const integrations = {
 // Health API
 export const health = {
 	check: () => request<{ status: string; site_name: string }>('/health'),
-	info: () => request<{ name: string; version: string; site_name: string; latitude: number; longitude: number; model: string }>('/info'),
+	info: () =>
+		request<{
+			name: string;
+			version: string;
+			site_name: string;
+			latitude: number;
+			longitude: number;
+			model: string;
+			custom_image: string;
+			custom_image_title: string;
+		}>('/info'),
 };
 
 // Types
