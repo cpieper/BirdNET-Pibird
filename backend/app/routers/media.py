@@ -10,7 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from ..config import get_settings, Settings
-from ..dependencies import verify_credentials
+from ..dependencies import common_name_to_folder, verify_credentials
 
 router = APIRouter()
 
@@ -89,7 +89,57 @@ def species_folder_keys(sci_name: str, com_name: str) -> set[str]:
             continue
         keys.add(clean_name)
         keys.add(clean_name.replace(" ", "_"))
+        keys.add(clean_name.replace("'", "").replace(" ", "_"))
     return keys
+
+
+def parse_latest_species(latest_species: str | None) -> tuple[str, str]:
+    """Split the packed latest-seen species value from SQLite."""
+    if not latest_species:
+        return "", ""
+    latest_seen, _, com_name = latest_species.partition("|")
+    return latest_seen[:10], com_name
+
+
+def species_summary_from_detections(settings: Settings) -> list[dict[str, object]] | None:
+    """Return a lightweight all-date Library summary from the detection index."""
+    if not os.path.exists(settings.db_path):
+        return None
+
+    conn = sqlite3.connect(f"file:{settings.db_path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                Sci_Name,
+                COUNT(DISTINCT Date || '/' || File_Name) AS Count,
+                MAX(Date || ' ' || Time || '|' || Com_Name) AS LatestSpecies
+            FROM detections
+            WHERE File_Name IS NOT NULL AND File_Name != ''
+            GROUP BY Sci_Name
+            HAVING Count > 0
+            ORDER BY Count DESC
+            """
+        ).fetchall()
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+
+    species: list[dict[str, object]] = []
+    for row in rows:
+        latest_date, com_name = parse_latest_species(row["LatestSpecies"])
+        if not com_name:
+            continue
+        species.append({
+            "name": common_name_to_folder(com_name),
+            "count": row["Count"],
+            "latest_date": latest_date,
+            "sci_name": row["Sci_Name"],
+            "com_name": com_name,
+        })
+    return species
 
 
 def species_metadata_by_folder(settings: Settings, date: str | None = None) -> dict[str, dict[str, str]]:
@@ -527,6 +577,10 @@ async def list_species_with_recordings(
 
     if not os.path.exists(by_date_dir):
         return {"species": []}
+
+    species_from_db = species_summary_from_detections(settings)
+    if species_from_db is not None:
+        return {"species": species_from_db}
 
     metadata_by_folder = species_metadata_by_folder(settings)
     species_by_name: dict[str, dict[str, object]] = {}
