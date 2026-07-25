@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { detections, integrations, type RangeChartData } from '$lib/api';
-	import { ExternalLinks } from '$lib/components';
+	import { DatePicker, ExternalLinks } from '$lib/components';
 	import { toasts } from '$lib/stores';
 
 	let ChartJS: typeof import('chart.js/auto').default;
@@ -147,6 +147,13 @@
 	function goToToday() {
 		anchorDate = todayStr();
 		loadChartData();
+	}
+
+	function handleAnchorDateChange(event: CustomEvent<string>) {
+		const nextDate = event.detail;
+		if (!nextDate) return;
+		anchorDate = nextDate;
+		void loadChartData();
 	}
 
 	function changeMode(mode: RangeMode) {
@@ -690,15 +697,13 @@
 		<!-- Day mode: date dropdown for quick jump -->
 		{#if rangeMode === 'day' && availableDates.length > 0}
 			<div class="px-4 pb-4">
-				<select
-					bind:value={anchorDate}
-					on:change={loadChartData}
-					class="select w-full text-sm"
-				>
-					{#each availableDates as date}
-						<option value={date}>{date}</option>
-					{/each}
-				</select>
+				<DatePicker
+					id="insightsDate"
+					label="Jump to date"
+					value={anchorDate}
+					dates={availableDates}
+					on:change={handleAnchorDateChange}
+				/>
 			</div>
 		{/if}
 	</div>
