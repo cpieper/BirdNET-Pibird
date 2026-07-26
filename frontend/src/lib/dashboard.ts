@@ -5,6 +5,7 @@ export interface ActivitySegment {
 	count: number;
 	intensity: number;
 	isPeak: boolean;
+	isPending: boolean;
 	label: string;
 	title: string;
 }
@@ -24,8 +25,9 @@ function hourLabel(hour: number): string {
 	return '';
 }
 
-export function buildActivitySegments(hourlyData: RangeChartData | null): ActivitySegment[] {
+export function buildActivitySegments(hourlyData: RangeChartData | null, now = new Date()): ActivitySegment[] {
 	const counts = new Array(24).fill(0) as number[];
+	const currentHour = now.getHours();
 
 	for (const bucket of hourlyData?.buckets ?? []) {
 		const hour = typeof bucket.period === 'number' ? bucket.period : Number(bucket.period);
@@ -34,17 +36,24 @@ export function buildActivitySegments(hourlyData: RangeChartData | null): Activi
 		}
 	}
 
-	const max = Math.max(...counts, 0);
+	const observedCounts = counts.slice(0, currentHour + 1);
+	const max = Math.max(...observedCounts, 0);
 	const peakHour = max > 0 ? counts.indexOf(max) : -1;
 
-	return counts.map((count, hour) => ({
-		hour,
-		count,
-		intensity: max > 0 ? count / max : 0,
-		isPeak: hour === peakHour,
-		label: hourLabel(hour),
-		title: `${hour}:00 - ${count} ${count === 1 ? 'detection' : 'detections'}`,
-	}));
+	return counts.map((count, hour) => {
+		const isPending = hour > currentHour;
+		return {
+			hour,
+			count,
+			intensity: !isPending && max > 0 ? count / max : 0,
+			isPeak: !isPending && hour === peakHour,
+			isPending,
+			label: hourLabel(hour),
+			title: isPending
+				? `${hour}:00 - pending`
+				: `${hour}:00 - ${count} ${count === 1 ? 'detection' : 'detections'}`,
+		};
+	});
 }
 
 export function detectionTimestamp(detection: Detection): number {
