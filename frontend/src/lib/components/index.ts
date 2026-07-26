@@ -9,3 +9,4 @@ export { default as StatsCard } from './StatsCard.svelte';
 export { default as Modal } from './Modal.svelte';
 export { default as Toast } from './Toast.svelte';
 export { default as ExternalLinks } from './ExternalLinks.svelte';
+export { default as ActivityStrip } from './ActivityStrip.svelte';
