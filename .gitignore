@@ -9,6 +9,9 @@
 # Codex brainstorming scratch files
 .superpowers/
 
+# Local git worktrees
+.worktrees/
+
 # JetBrains IDEs
 .idea/
 
