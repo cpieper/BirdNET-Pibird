@@ -365,7 +365,7 @@
 	<title>{$siteName} - Dashboard</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-6 overflow-x-hidden">
+<div class="page-shell overflow-x-hidden">
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>

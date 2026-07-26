@@ -326,14 +326,16 @@
 	<title>Review - BirdNET-Pi</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-6">
-	<div class="mb-6">
-		<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Review</h1>
-		<p class="text-gray-600 dark:text-gray-400 mt-1">Triage and clean up detections</p>
+<div class="page-shell">
+	<div class="page-header">
+		<div>
+			<h1 class="page-title">Review</h1>
+			<p class="page-subtitle">Triage and clean up detections</p>
+		</div>
 	</div>
 
 	<!-- Filters -->
-	<div class="card mb-6 p-4">
+	<div class="filter-card">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<div>
 				<p class="text-sm font-medium text-gray-900 dark:text-gray-100">Review queue</p>

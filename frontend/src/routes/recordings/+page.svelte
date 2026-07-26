@@ -305,19 +305,17 @@
 	<title>Library - BirdNET-Pi</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-6">
-	<div class="mb-6">
-		<div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-			<div>
-				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Library</h1>
-				<p class="mt-1 text-gray-600 dark:text-gray-400">Recording playback, spectrogram inspection, and file tools</p>
-			</div>
-			<button type="button" class="btn-secondary self-start md:self-auto" on:click={openFileManager}>Open File Manager</button>
+<div class="page-shell">
+	<div class="page-header">
+		<div>
+			<h1 class="page-title">Library</h1>
+			<p class="page-subtitle">Recording playback, spectrogram inspection, and file tools</p>
 		</div>
+		<button type="button" class="btn-secondary self-start sm:self-auto" on:click={openFileManager}>Open File Manager</button>
 	</div>
 
 	<!-- Filters -->
-	<div class="card p-4 mb-6">
+	<div class="filter-card">
 		<div class="grid md:grid-cols-2 gap-4">
 			<!-- Date selector -->
 			<DatePicker
@@ -352,16 +350,16 @@
 	<!-- Species summary for selected date -->
 	{#if !selectedSpecies}
 		<div class="mb-6">
-			<div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+			<div class="section-header">
 				<div>
-					<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+					<h2 class="section-title">
 						{selectedDate ? `Recording species for ${selectedDate}` : 'Recording species'}
 					</h2>
-					<p class="text-sm text-gray-500 dark:text-gray-400">
+					<p class="section-subtitle">
 						Open a species to inspect saved audio, spectrograms, and shifted clips.
 					</p>
 				</div>
-				<span class="text-sm text-gray-500 dark:text-gray-400">{speciesForDate.length} species</span>
+				<span class="metric-pill">{speciesForDate.length} species</span>
 			</div>
 			{#if speciesForDate.length === 0}
 				<div class="card p-8 text-center">
@@ -374,7 +372,7 @@
 					{#each speciesForDate as sp}
 						<button
 							on:click={() => void openSpecies(sp)}
-							class="card group flex min-w-0 items-center gap-3 p-3 text-left transition-shadow hover:border-primary-200 hover:shadow-md dark:hover:border-primary-900"
+							class="species-card group"
 						>
 							{#if sp.sci_name}
 								<SpeciesImage sciName={sp.sci_name} size="xs" />
@@ -386,16 +384,16 @@
 								</span>
 							{/if}
 							<span class="min-w-0 flex-1">
-								<span class="block truncate font-semibold text-gray-900 dark:text-gray-100">
+								<span class="species-card-title">
 									{speciesDisplayName(sp)}
 								</span>
 								{#if speciesScientificName(sp)}
-									<span class="block truncate text-sm italic text-gray-500 dark:text-gray-400">
+									<span class="species-card-subtitle">
 										{speciesScientificName(sp)}
 									</span>
 								{/if}
-								<span class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-									<span class="rounded-md bg-gray-100 px-2 py-0.5 font-medium text-gray-600 dark:bg-dark-nav dark:text-gray-300">
+								<span class="species-card-meta">
+									<span class="metric-pill">
 										{sp.count} {sp.count === 1 ? 'file' : 'files'}
 									</span>
 									{#if !selectedDate && sp.latest_date}
@@ -420,7 +418,7 @@
 		<div>
 			<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div>
-					<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+					<h2 class="section-title">
 						{selectedSpeciesLabel} - {selectedDate}
 					</h2>
 					<div class="mt-1">
@@ -432,12 +430,12 @@
 						<input type="checkbox" checked={showShifted} on:change={handleShowShiftedToggle} />
 						<span>Show shifted</span>
 					</label>
-				<button
-					on:click={() => { selectedSpecies = ''; files = []; }}
-					class="btn-ghost btn-sm"
-				>
-					← Back to species
-				</button>
+					<button
+						on:click={() => { selectedSpecies = ''; files = []; }}
+						class="btn-ghost btn-sm"
+					>
+						← Back to species
+					</button>
 				</div>
 			</div>
 

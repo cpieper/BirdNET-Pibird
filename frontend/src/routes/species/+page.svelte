@@ -158,17 +158,17 @@
 	<title>Species - BirdNET-Pi</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-6">
-	<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+<div class="page-shell">
+	<div class="page-header">
 		<div>
-			<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Species</h1>
-			<p class="text-gray-600 dark:text-gray-400 mt-1">{subtitle}</p>
+			<h1 class="page-title">Species</h1>
+			<p class="page-subtitle">{subtitle}</p>
 		</div>
 		<a href="/species/manage" class="btn-secondary self-start sm:self-auto">Manage Lists</a>
 	</div>
 
 	<!-- Filters -->
-	<div class="card p-4 mb-6">
+	<div class="filter-card">
 		<div class="grid gap-3 lg:grid-cols-[minmax(16rem,18rem)_auto_minmax(16rem,1fr)_12rem] lg:items-end">
 			<DatePicker
 				id="speciesDate"
@@ -219,9 +219,13 @@
 	</div>
 
 	<!-- Species count -->
-	<p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-		{filteredSpecies.length} species
-	</p>
+	<div class="section-header">
+		<div>
+			<h2 class="section-title">Detected species</h2>
+			<p class="section-subtitle">Browse historical species records and open detail pages.</p>
+		</div>
+		<span class="metric-pill">{filteredSpecies.length} species</span>
+	</div>
 
 	<!-- Species list -->
 	{#if loading}
@@ -235,25 +239,25 @@
 	{:else}
 		<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
 			{#each filteredSpecies as sp (sp.Sci_Name)}
-				<div class="card flex gap-3 p-3 transition-shadow hover:border-primary-200 hover:shadow-md dark:hover:border-primary-900">
+				<div class="species-card">
 					<SpeciesImage sciName={sp.Sci_Name} size="sm" />
 					<div class="flex-1 min-w-0">
 						<a href="/species/{encodeURIComponent(sp.Sci_Name)}">
-							<h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate hover:underline">
+							<h3 class="species-card-title hover:underline">
 								{sp.Com_Name}
 							</h3>
-							<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">
+							<p class="species-card-subtitle">
 								{sp.Sci_Name}
 							</p>
 						</a>
 						<div class="mt-1">
 							<ExternalLinks sciName={sp.Sci_Name} comName={sp.Com_Name} compact={true} />
 						</div>
-						<div class="mt-2 flex items-center gap-4 text-sm">
-							<span class="text-gray-600 dark:text-gray-400">
+						<div class="species-card-meta">
+							<span class="metric-pill">
 								{sp.Count} {sp.Count === 1 ? 'detection' : 'detections'}{dateFilter === 'all' ? '' : ' on this day'}
 							</span>
-							<span class="badge-primary">
+							<span class="metric-pill-primary">
 								{formatConfidence(sp.MaxConfidence)}
 							</span>
 						</div>

@@ -624,11 +624,11 @@
 	<title>Insights - BirdNET-Pi</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-6">
-	<div class="mb-6">
+<div class="page-shell">
+	<div class="page-header">
 		<div>
-			<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Insights</h1>
-			<p class="text-gray-600 dark:text-gray-400 mt-1">Trends and pattern analysis</p>
+			<h1 class="page-title">Insights</h1>
+			<p class="page-subtitle">Trends and pattern analysis</p>
 		</div>
 	</div>
 

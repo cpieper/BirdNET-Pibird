@@ -1,5 +1,5 @@
 <script lang="ts">
-import { goto } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { createEventDispatcher } from 'svelte';
 	import type { Detection, SpeciesExternalLinks } from '$lib/api';
 	import { media } from '$lib/api';
@@ -121,7 +121,7 @@ import { goto } from '$app/navigation';
 						/>
 					</div>
 					<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-						<span class="rounded-md bg-gray-100 px-2 py-0.5 font-medium text-gray-600 dark:bg-dark-nav dark:text-gray-300">
+						<span class="metric-pill">
 							{#if showDate}{detection.Date} · {/if}{formatTime(detection.Time)}
 						</span>
 						{#if tagLabel}
@@ -130,14 +130,14 @@ import { goto } from '$app/navigation';
 							</span>
 						{/if}
 						{#if groupedSummary}
-							<span class="rounded-md bg-primary-50 px-2 py-0.5 font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-200">
+							<span class="metric-pill-primary">
 								{groupedSummary}
 							</span>
 						{/if}
 					</div>
 				</div>
 				<div class="flex flex-shrink-0 items-center gap-2" data-no-card-link>
-					<span class="rounded-md bg-primary-50 px-2 py-1 text-xs font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-200">
+					<span class="metric-pill-primary py-1 font-semibold">
 						{formatConfidence(detection.Confidence)}
 					</span>
 					{#if allowDelete}
