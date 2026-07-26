@@ -8,6 +8,10 @@
 		if (segment.count === 0) return '0.125rem';
 		return `${Math.max(0.35, segment.intensity) * 2}rem`;
 	}
+
+	function isOvernightQuiet(segment: ActivitySegment): boolean {
+		return segment.count === 0 && (segment.hour < 6 || segment.hour >= 21);
+	}
 </script>
 
 <a
@@ -18,15 +22,17 @@
 	<div class="mb-2 flex items-center justify-between gap-3">
 		<div>
 			<p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Today at a glance</p>
-			<p class="text-xs text-gray-500 dark:text-gray-400">24-hour detection rhythm</p>
+			<p class="text-xs text-gray-500 dark:text-gray-400">24-hour rhythm with overnight quiet</p>
 		</div>
 		<span class="text-xs font-medium text-gray-500 dark:text-gray-400">Insights</span>
 	</div>
 	<div class="grid h-9 grid-cols-24 items-end gap-0.5" aria-hidden="true">
 		{#each segments as segment (segment.hour)}
 			<span
-				class="block rounded-sm {segment.count === 0
-					? 'border-t-2 border-dashed border-gray-300 bg-transparent dark:border-gray-600'
+				class="block rounded-sm {isOvernightQuiet(segment)
+					? 'border-t-2 border-gray-200 bg-gray-200/70 dark:border-gray-700 dark:bg-gray-700/70'
+					: segment.count === 0
+						? 'border-t-2 border-dashed border-gray-300 bg-transparent dark:border-gray-600'
 					: segment.isPeak
 						? 'bg-amber-500 dark:bg-amber-400'
 						: 'bg-primary-500/70 dark:bg-primary-400/70'}"
