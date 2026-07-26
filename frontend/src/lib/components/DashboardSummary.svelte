@@ -9,6 +9,13 @@
 		{ label: 'All-time detections', value: () => stats?.total_count ?? 0, href: '/history' },
 		{ label: 'Station species', value: () => stats?.species_tally ?? 0, href: '/species' },
 	];
+
+	function todayStr(): string {
+		const d = new Date();
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	}
+
+	$: todayHref = `/detections?date=${todayStr()}&new_on_date=true`;
 </script>
 
 <section class="card p-4 sm:p-5">
@@ -25,7 +32,7 @@
 		{/each}
 	</div>
 	{#if (stats?.new_species_today ?? 0) > 0}
-		<a href="/detections?date={new Date().toISOString().slice(0, 10)}&new_on_date=true" class="mt-3 inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-800/70 dark:bg-amber-900/25 dark:text-amber-200">
+		<a href={todayHref} class="mt-3 inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-800/70 dark:bg-amber-900/25 dark:text-amber-200">
 			{stats?.new_species_today} first station {(stats?.new_species_today ?? 0) === 1 ? 'record' : 'records'} today
 		</a>
 	{/if}
