@@ -6,6 +6,9 @@
 # IDE and Editor
 # =============================================================================
 
+# Codex brainstorming scratch files
+.superpowers/
+
 # JetBrains IDEs
 .idea/
 
