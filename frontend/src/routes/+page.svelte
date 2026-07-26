@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { onMount, onDestroy, tick } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { detections, health, species as speciesApi, system as systemApi, type Detection, type DetectionStats, type SpeciesSummary, type RangeChartData } from '$lib/api';
-	import { StatsCard, DetectionCard, ExternalLinks, SpeciesImage, Modal } from '$lib/components';
+	import { DashboardSummary, DetectionCard, DiscoveryNote, ExternalLinks, LiveFieldWindow, Modal } from '$lib/components';
+	import { buildActivitySegments, buildDiscoveryPreview, isFirstStationRecord, latestDetection as selectLatestDetection } from '$lib/dashboard';
 	import { auth, setSiteIdentity, siteName, toasts } from '$lib/stores';
-
-	let ChartJS: typeof import('chart.js/auto').default;
 
 	let stats: DetectionStats | null = null;
 	let topSpeciesToday: SpeciesSummary[] = [];
@@ -17,9 +16,6 @@
 	let refreshInterval: ReturnType<typeof setInterval>;
 
 	let hourlyData: RangeChartData | null = null;
-	let sparkCanvas: HTMLCanvasElement;
-	let sparkChart: any = null;
-	let isDark = false;
 	type DetectionGroup = {
 		sciName: string;
 		comName: string;
@@ -30,7 +26,6 @@
 	let groupedDetections: DetectionGroup[] = [];
 	let newSpeciesTodayDetections: Detection[] = [];
 	let newSpeciesTodaySet: Set<string> = new Set();
-	let prefersReducedMotion = false;
 	let liveAudioUrl = '';
 	let liveAudioExpiresAt = '';
 	let liveAudioLoading = false;
@@ -38,10 +33,6 @@
 	let showLiveAudioLoginModal = false;
 	let liveAudioPassword = '';
 	let liveAudioElement: HTMLAudioElement | null = null;
-
-	function detectTheme() {
-		isDark = document.documentElement.classList.contains('dark');
-	}
 
 	function todayStr(): string {
 		const d = new Date();
@@ -120,6 +111,13 @@
 		: displayedTopSpecies.slice(0, TOP_SPECIES_PREVIEW);
 	$: canExpandTopSpecies = displayedTopSpecies.length > TOP_SPECIES_PREVIEW;
 	$: topSpeciesTitle = topSpeciesMode === 'today' ? 'Top Species Today' : 'Top Species All Time';
+	let featuredDetection: Detection | null = null;
+
+	$: activitySegments = buildActivitySegments(hourlyData);
+	$: discoveryPreview = buildDiscoveryPreview(newSpeciesTodayDetections);
+	$: featuredIsFirstStationRecord = featuredDetection
+		? isFirstStationRecord(featuredDetection.Sci_Name, newSpeciesTodaySet)
+		: false;
 
 	function setTopSpeciesMode(mode: 'today' | 'all') {
 		topSpeciesMode = mode;
@@ -143,6 +141,7 @@
 
 			const pinnedSpecies = new Set(newSpeciesData.map((detection) => detection.Sci_Name));
 			const mergedDetections = uniqueDetections([...newSpeciesData, ...detectionsData.detections]);
+			featuredDetection = selectLatestDetection(mergedDetections);
 
 			stats = statsData;
 			newSpeciesTodayDetections = newSpeciesData;
@@ -163,107 +162,6 @@
 		} finally {
 			loading = false;
 		}
-		await tick();
-		renderSparkline();
-	}
-
-	function getHourLabel(hour: number): string {
-		if (hour === 0) return '12am';
-		if (hour === 12) return '12pm';
-		return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
-	}
-
-	function renderSparkline() {
-		if (!hourlyData || !ChartJS || !sparkCanvas) return;
-		detectTheme();
-
-		if (sparkChart) sparkChart.destroy();
-
-		const labels = hourlyData.buckets.map(b => getHourLabel(b.period as number));
-		const counts = hourlyData.buckets.map(b => b.count);
-		const maxCount = Math.max(...counts);
-
-		const barColor = isDark ? 'rgba(34,197,94,0.6)' : 'rgba(22,163,74,0.7)';
-		const barHover = isDark ? 'rgba(34,197,94,0.85)' : 'rgba(22,163,74,0.9)';
-		const textColor = isDark ? '#9ca3af' : '#6b7280';
-		const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-
-		// Find peak hour
-		const peakIdx = counts.indexOf(maxCount);
-		const bgColors = counts.map((_, i) =>
-			i === peakIdx && maxCount > 0 ? (isDark ? 'rgba(250,204,21,0.7)' : 'rgba(202,138,4,0.7)') : barColor
-		);
-
-		const speciesBreakdownByHour = hourlyData.species_buckets.map((species) => ({
-			comName: species.com_name,
-			counts: species.counts,
-		}));
-
-		sparkChart = new ChartJS(sparkCanvas, {
-			type: 'bar',
-			data: {
-				labels,
-				datasets: [{
-					data: counts,
-					backgroundColor: bgColors,
-					hoverBackgroundColor: barHover,
-					borderRadius: 3,
-					borderSkipped: false,
-				}],
-			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				animation: { duration: prefersReducedMotion ? 0 : 120, easing: 'linear' },
-				plugins: {
-					legend: { display: false },
-					tooltip: {
-						backgroundColor: isDark ? '#1f2937' : '#fff',
-						titleColor: textColor,
-						bodyColor: isDark ? '#d1d5db' : '#374151',
-						borderColor: gridColor,
-						borderWidth: 1,
-						padding: 8,
-						cornerRadius: 6,
-							displayColors: false,
-							callbacks: {
-								title: (items) => items[0]?.label || '',
-								label: (ctx) => `Total: ${ctx.parsed.y} detection${ctx.parsed.y !== 1 ? 's' : ''}`,
-								afterLabel: (ctx) => {
-									const bucketIdx = ctx.dataIndex;
-									const breakdown = speciesBreakdownByHour
-										.map((entry) => ({ comName: entry.comName, count: entry.counts[bucketIdx] || 0 }))
-										.filter((entry) => entry.count > 0)
-										.sort((a, b) => b.count - a.count);
-
-									if (breakdown.length === 0) return ['No species'];
-
-									const top = breakdown.slice(0, 4).map((entry) => `${entry.comName}: ${entry.count}`);
-									const otherCount = breakdown.slice(4).reduce((sum, entry) => sum + entry.count, 0);
-									return otherCount > 0 ? [...top, `Other: ${otherCount}`] : top;
-								},
-							},
-						},
-					},
-				scales: {
-					x: {
-						grid: { display: false },
-						ticks: {
-							color: textColor,
-							font: { size: 10 },
-							maxRotation: 0,
-							callback: function(_value, index) {
-								return index % 6 === 0 ? labels[index] : '';
-							},
-						},
-					},
-					y: {
-						display: false,
-						beginAtZero: true,
-					},
-				},
-			},
-			});
 	}
 
 	function clearLiveAudio() {
@@ -322,14 +220,9 @@
 		}
 	}
 
-	let themeObserver: MutationObserver;
 	let visibilityHandler: (() => void) | undefined;
 
-	onMount(async () => {
-		const module = await import('chart.js/auto');
-		ChartJS = module.default;
-		prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
+	onMount(() => {
 		void loadData();
 		refreshInterval = setInterval(() => {
 			if (document.hidden) return;
@@ -340,20 +233,10 @@
 			if (!document.hidden) void loadData();
 		};
 		document.addEventListener('visibilitychange', visibilityHandler);
-
-		themeObserver = new MutationObserver(() => {
-			if (hourlyData) renderSparkline();
-		});
-		themeObserver.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ['class'],
-		});
 	});
 
 	onDestroy(() => {
 		if (refreshInterval) clearInterval(refreshInterval);
-		if (sparkChart) sparkChart.destroy();
-		if (themeObserver) themeObserver.disconnect();
 		if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
 		if (liveAudioElement) {
 			liveAudioElement.pause();
@@ -371,107 +254,16 @@
 			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else}
-		<!-- Stats Grid -->
-		<div class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-			<div class="min-w-0 self-start">
-				<StatsCard
-					value={stats?.todays_count || 0}
-					label="Today"
-					icon="today"
-					href={insightsHref('today')}
-					compact={true}
-				/>
-				<div class="mt-2 px-1 text-sm text-gray-600 dark:text-gray-400">
-					<a href={insightsHref('total')} class="hover:text-primary-700 hover:underline dark:hover:text-primary-300">
-						{stats?.total_count || 0} total detections
-					</a>
-				</div>
-			</div>
-			<div class="min-w-0 self-start">
-				<StatsCard
-					value={stats?.hour_count || 0}
-					label="Last Hour"
-					icon="hour"
-					href={insightsHref('hour')}
-					compact={true}
-				/>
-			</div>
-			<div class="min-w-0 self-start">
-				<StatsCard
-					value={stats?.todays_species_tally || 0}
-					label="Species Today"
-					icon="species"
-					href={insightsHref('species_today')}
-					compact={true}
-				/>
-				<div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1 text-sm text-gray-600 dark:text-gray-400">
-					<a href={insightsHref('all_species')} class="hover:text-primary-700 hover:underline dark:hover:text-primary-300">
-						{stats?.species_tally || 0} all-time species
-					</a>
-					{#if (stats?.new_species_today || 0) > 0}
-						<a href={insightsHref('new_species_today')} class="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
-							{stats?.new_species_today || 0} new species
-						</a>
-					{/if}
-				</div>
-			</div>
-		</div>
-
-		{#if newSpeciesTodayDetections.length > 0}
-			<div class="card mb-6 border-l-4 border-emerald-500">
-				<div class="card-header flex items-center justify-between">
-					<h3 class="font-semibold text-gray-900 dark:text-gray-100">New Species Today</h3>
-					<span class="badge-primary">{newSpeciesTodayDetections.length}</span>
-				</div>
-				<div class="card-body">
-					<div class="grid gap-3 md:grid-cols-2">
-						{#each newSpeciesTodayDetections as detection (detection.Sci_Name)}
-							<div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-dark-border p-3">
-								<div class="min-w-0">
-									<a href="/species/{encodeURIComponent(detection.Sci_Name)}" class="font-medium text-gray-900 dark:text-gray-100 hover:underline truncate block">
-										{detection.Com_Name}
-									</a>
-									<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">{detection.Sci_Name}</p>
-								</div>
-								<a href={detectionsHref(detection, { newOnDate: true })} class="text-xs text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap">
-									Open Review →
-								</a>
-							</div>
-						{/each}
-					</div>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Live indicator -->
-		<div class="flex items-center gap-2 mb-4">
-			<span class="w-3 h-3 bg-green-500 rounded-full pulse-live"></span>
-			<span class="text-sm text-gray-600 dark:text-gray-400">
-				Live - Refreshes every 60 seconds while this tab is visible
-			</span>
-		</div>
-
-		<!-- Today's Activity Chart -->
-		<div class="card mb-8">
-			<div class="card-header flex items-center justify-between">
-				<div>
-					<h3 class="font-semibold text-gray-900 dark:text-gray-100">Today's Activity</h3>
-					<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Detections by hour</p>
-				</div>
-				<a href={insightsHref('today')} class="text-primary-600 dark:text-primary-400 hover:underline text-sm">
-					Open Insights →
-				</a>
-			</div>
-			<div class="card-body">
-				{#if hourlyData && hourlyData.total_detections > 0}
-					<div class="h-32">
-						<canvas bind:this={sparkCanvas}></canvas>
-					</div>
-				{:else}
-					<div class="h-32 flex items-center justify-center">
-						<p class="text-sm text-gray-400 dark:text-gray-500">No activity recorded today yet</p>
-					</div>
-				{/if}
+		<div class="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.75fr)]">
+			<LiveFieldWindow
+				detection={featuredDetection}
+				firstStationRecord={featuredIsFirstStationRecord}
+				{activitySegments}
+				activityHref={insightsHref('today')}
+			/>
+			<div class="space-y-4">
+				<DashboardSummary {stats} />
+				<DiscoveryNote discovery={discoveryPreview} />
 			</div>
 		</div>
 
@@ -523,14 +315,11 @@
 					</div>
 				{:else}
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-						{#each visibleTopSpecies as sp, index (sp.Sci_Name)}
+					{#each visibleTopSpecies as sp, index (sp.Sci_Name)}
 							<div class="flex min-w-0 items-start gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-dark-border">
 								<span class="mt-1 w-5 flex-shrink-0 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">
 									{index + 1}
 								</span>
-								<div class="flex-shrink-0 rounded-full overflow-hidden">
-									<SpeciesImage sciName={sp.Sci_Name} size="xs" />
-								</div>
 								<div class="flex-1 min-w-0">
 									<div class="flex min-w-0 items-start justify-between gap-3">
 										<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="block min-w-0">
@@ -557,12 +346,12 @@
 				{/if}
 		</div>
 
-		<!-- Latest Detections -->
+		<!-- Recent Species -->
 		<div class="mb-8">
 			<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
 				<div class="flex flex-wrap items-center gap-2">
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-						Latest Detections
+						Recent Species
 					</h2>
 					{#if groupedDetections.length > 0}
 						<span class="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-nav dark:text-gray-300">
@@ -575,7 +364,7 @@
 				</a>
 			</div>
 			<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-				Most recent recording for each species. Repeats are summarized on the card.
+				Most recent recording for each species. First station records are highlighted.
 			</p>
 
 			{#if groupedDetections.length === 0}
@@ -596,7 +385,7 @@
 							showDate={false}
 							href={detectionsHref(group.latest, { newOnDate: isPinnedNewSpecies(group.sciName) })}
 							allowSpectrogramExpand={false}
-							tagLabel={isPinnedNewSpecies(group.sciName) ? 'New today' : null}
+							tagLabel={isPinnedNewSpecies(group.sciName) ? 'First station record' : null}
 							groupedCount={group.count}
 						/>
 					{/each}
