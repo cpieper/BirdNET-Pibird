@@ -6,6 +6,7 @@
 	import NavIcon, { type NavIconName } from './NavIcon.svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 
+	const SERVICE_NAME = 'PiBird';
 	const navItems: { href: string; label: string; icon: NavIconName }[] = [
 		{ href: '/', label: 'Dashboard', icon: 'home' },
 		{ href: '/detections', label: 'Review', icon: 'inspect' },
@@ -25,7 +26,14 @@
 	$: currentPath = $page.url.pathname;
 	$: logoSrc = $customImage && !logoImageFailed ? $customImage : '/bird.png';
 	$: stationLocation = formatStationLocation(stationLatitude, stationLongitude);
+	$: headerTitle = formatHeaderTitle($siteName);
 	$: if ($customImage) logoImageFailed = false;
+
+	function formatHeaderTitle(instanceName: string): string {
+		const name = instanceName.trim();
+		if (!name || name.toLowerCase() === SERVICE_NAME.toLowerCase()) return SERVICE_NAME;
+		return `${SERVICE_NAME} - ${name}`;
+	}
 
 	function formatStationLocation(lat: number | null, lon: number | null): string {
 		if (lat === null || lon === null || !Number.isFinite(lat) || !Number.isFinite(lon)) {
@@ -89,12 +97,12 @@
 		<a href="/" class="flex items-center gap-3 text-white">
 			<img
 				src={logoSrc}
-				alt="{$siteName} logo"
+				alt="{headerTitle} logo"
 				class="w-8 h-8 rounded-md object-cover ring-1 ring-white/30"
 				on:error={() => (logoImageFailed = true)}
 			/>
 			<span class="flex min-w-0 flex-col">
-				<span class="max-w-64 truncate text-lg font-bold leading-tight">{$siteName}</span>
+				<span class="max-w-64 truncate text-lg font-bold leading-tight">{headerTitle}</span>
 				<span class="hidden max-w-72 truncate text-[11px] font-medium uppercase tracking-wide text-white/70 lg:block">
 					Live station{stationLocation ? ` · ${stationLocation}` : ''}
 				</span>
@@ -145,12 +153,12 @@
 		<a href="/" class="flex items-center gap-2 text-white">
 			<img
 				src={logoSrc}
-				alt="{$siteName} logo"
+				alt="{headerTitle} logo"
 				class="w-7 h-7 rounded-md object-cover ring-1 ring-white/30"
 				on:error={() => (logoImageFailed = true)}
 			/>
 			<span class="flex min-w-0 flex-col">
-				<span class="max-w-[11rem] truncate text-base font-bold leading-tight">{$siteName}</span>
+				<span class="max-w-[11rem] truncate text-base font-bold leading-tight">{headerTitle}</span>
 				<span class="max-w-[11rem] truncate text-[10px] font-medium uppercase tracking-wide text-white/70">
 					Live station{stationLocation ? ` · ${stationLocation}` : ''}
 				</span>
