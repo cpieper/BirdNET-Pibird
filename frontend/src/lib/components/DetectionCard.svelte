@@ -17,9 +17,8 @@
 	export let speciesLinks: SpeciesExternalLinks | null = null;
 	export let allowSpectrogramExpand: boolean = true;
 	export let spectrogramExpandedHeightClass: string = 'h-[68vh] md:h-[72vh]';
-	/** When > 1, shows how many additional detections are grouped into this card. */
+	/** When > 1, shows the grouped detection count as a compact header pill. */
 	export let groupedCount: number | null = null;
-	export let groupedCountContext = 'in recent activity';
 	let spectrogramExpanded = false;
 
 	$: additionalDetectionCount =
@@ -213,12 +212,4 @@
 			{temporalZoomPrepareUrls}
 		/>
 	</div>
-
-	{#if additionalDetectionCount > 0}
-		<p class="mt-3 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-dark-border dark:text-gray-400">
-			{additionalDetectionCount === 1 ? 'One more recording' : `${additionalDetectionCount} more recordings`}
-			{' '}
-			{groupedCountContext}
-		</p>
-	{/if}
 </div>

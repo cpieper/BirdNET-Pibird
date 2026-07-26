@@ -598,7 +598,6 @@
 							allowSpectrogramExpand={false}
 							tagLabel={isPinnedNewSpecies(group.sciName) ? 'New today' : null}
 							groupedCount={group.count}
-							groupedCountContext="today"
 						/>
 					{/each}
 				</div>
