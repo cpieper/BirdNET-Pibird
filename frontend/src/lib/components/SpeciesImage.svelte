@@ -42,6 +42,7 @@
 
 	export let sciName: string;
 	export let size: 'xs' | 'sm' | 'md' | 'lg' = 'md';
+	export let fill = false;
 
 	let imageData: BirdImage | null = null;
 	let loading = true;
@@ -135,7 +136,7 @@
 	});
 </script>
 
-<div bind:this={container} class="{sizeClasses[size]} bg-gray-200 dark:bg-dark-card rounded-lg overflow-hidden">
+<div bind:this={container} class="{fill ? 'h-full w-full' : sizeClasses[size]} bg-gray-200 dark:bg-dark-card rounded-lg overflow-hidden">
 	{#if loading}
 		<div class="w-full h-full flex items-center justify-center">
 			<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>

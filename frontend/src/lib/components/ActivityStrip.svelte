@@ -30,9 +30,9 @@
 	<div class="mb-2 flex items-center justify-between gap-3">
 		<div>
 			<p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Today at a glance</p>
-			<p class="text-xs text-gray-500 dark:text-gray-400">Observed rhythm with overnight quiet</p>
+			<p class="text-xs text-gray-500 dark:text-gray-400">Activity over the last 24 hours</p>
 		</div>
-		<span class="text-xs font-medium text-gray-500 dark:text-gray-400">Insights</span>
+		<span class="text-xs font-medium text-gray-500 dark:text-gray-400">View Insights</span>
 	</div>
 	<div class="relative">
 		<div class="grid h-9 grid-cols-24 items-end gap-0.5" aria-hidden="true">

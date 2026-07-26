@@ -9,6 +9,7 @@
 	export let firstStationRecord = false;
 	export let activitySegments: ActivitySegment[] = [];
 	export let activityHref = '/history';
+	export let showActivityStrip = true;
 
 	$: audioContextHref = detection
 		? `/detections?date=${encodeURIComponent(detection.Date)}&species=${encodeURIComponent(detection.Sci_Name)}`
@@ -23,7 +24,7 @@
 	<div class="mb-4 flex items-center justify-between gap-3">
 		<div>
 			<p class="text-xs font-bold uppercase tracking-wide text-primary-700 dark:text-primary-300">Singing now</p>
-			<p class="text-sm text-gray-500 dark:text-gray-400">Live station detections refresh while this tab is visible</p>
+			<p class="text-sm text-gray-500 dark:text-gray-400">Refreshes every 60s while this tab is visible.</p>
 		</div>
 		<span class="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200">
 			<span class="h-2 w-2 rounded-full bg-emerald-500"></span>
@@ -34,7 +35,7 @@
 	{#if detection}
 		<div class="grid gap-4 sm:grid-cols-[6rem_minmax(0,1fr)]">
 			<a href={speciesHref} class="h-24 w-24 overflow-hidden rounded-lg bg-gray-200 ring-1 ring-gray-200 dark:bg-dark-border dark:ring-dark-border">
-				<SpeciesImage sciName={detection.Sci_Name} size="sm" />
+				<SpeciesImage sciName={detection.Sci_Name} size="sm" fill />
 			</a>
 
 			<div class="min-w-0">
@@ -79,7 +80,9 @@
 		</div>
 	{/if}
 
-	<div class="mt-4">
-		<ActivityStrip segments={activitySegments} href={activityHref} />
-	</div>
+	{#if showActivityStrip}
+		<div class="mt-4">
+			<ActivityStrip segments={activitySegments} href={activityHref} />
+		</div>
+	{/if}
 </section>

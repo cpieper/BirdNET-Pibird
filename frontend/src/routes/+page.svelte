@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { detections, health, species as speciesApi, system as systemApi, type Detection, type DetectionStats, type SpeciesSummary, type RangeChartData } from '$lib/api';
-	import { DashboardSummary, DetectionCard, DiscoveryNote, ExternalLinks, LiveFieldWindow, Modal } from '$lib/components';
+	import { ActivityStrip, DashboardSummary, DetectionCard, DiscoveryNote, ExternalLinks, LiveFieldWindow, Modal, SpeciesImage } from '$lib/components';
 	import { buildActivitySegments, buildDiscoveryPreview, isFirstStationRecord, latestDetection as selectLatestDetection } from '$lib/dashboard';
 	import { auth, setSiteIdentity, siteName, toasts } from '$lib/stores';
 
@@ -115,6 +115,7 @@
 
 	$: activitySegments = buildActivitySegments(hourlyData);
 	$: discoveryPreview = buildDiscoveryPreview(newSpeciesTodayDetections);
+	$: hasDiscoveryNote = discoveryPreview.total > 0;
 	$: featuredIsFirstStationRecord = featuredDetection
 		? isFirstStationRecord(featuredDetection.Sci_Name, newSpeciesTodaySet)
 		: false;
@@ -260,11 +261,19 @@
 				firstStationRecord={featuredIsFirstStationRecord}
 				{activitySegments}
 				activityHref={insightsHref('today')}
+				showActivityStrip={hasDiscoveryNote}
 			/>
-			<div class="space-y-4">
+			<div class="space-y-4 {hasDiscoveryNote ? '' : 'order-3 lg:order-2'}">
 				<DashboardSummary {stats} />
-				<DiscoveryNote discovery={discoveryPreview} />
+				{#if hasDiscoveryNote}
+					<DiscoveryNote discovery={discoveryPreview} />
+				{/if}
 			</div>
+			{#if !hasDiscoveryNote}
+				<div class="order-2 lg:order-3 lg:col-span-2">
+					<ActivityStrip segments={activitySegments} href={insightsHref('today')} />
+				</div>
+			{/if}
 		</div>
 
 		<!-- Top Species -->
@@ -314,12 +323,15 @@
 						</p>
 					</div>
 				{:else}
-					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-					{#each visibleTopSpecies as sp, index (sp.Sci_Name)}
+					<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+						{#each visibleTopSpecies as sp, index (sp.Sci_Name)}
 							<div class="flex min-w-0 items-start gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-dark-border">
 								<span class="mt-1 w-5 flex-shrink-0 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">
 									{index + 1}
 								</span>
+								<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-gray-200 ring-1 ring-gray-200 dark:bg-dark-border dark:ring-dark-border">
+									<SpeciesImage sciName={sp.Sci_Name} size="xs" fill />
+								</a>
 								<div class="flex-1 min-w-0">
 									<div class="flex min-w-0 items-start justify-between gap-3">
 										<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="block min-w-0">
@@ -351,7 +363,7 @@
 			<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
 				<div class="flex flex-wrap items-center gap-2">
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-						Recent Species
+						Recently Detected Species
 					</h2>
 					{#if groupedDetections.length > 0}
 						<span class="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-nav dark:text-gray-300">
@@ -364,7 +376,7 @@
 				</a>
 			</div>
 			<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-				Most recent recording for each species. First station records are highlighted.
+				Latest detections from today, grouped by species.
 			</p>
 
 			{#if groupedDetections.length === 0}
