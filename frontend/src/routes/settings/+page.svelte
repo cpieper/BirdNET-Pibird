@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { config as configApi, type Config } from '$lib/api';
 	import { verifyPasswordLogin } from '$lib/auth';
-	import { auth, toasts } from '$lib/stores';
+	import { auth, setSiteName, siteName as activeSiteName, toasts } from '$lib/stores';
 	import { Modal } from '$lib/components';
 
 	let currentConfig: Config | null = null;
@@ -151,6 +151,7 @@
 				payload,
 				auth.getCredentials()
 			);
+			setSiteName(siteName);
 			toasts.show(result.message, 'success');
 			await loadConfig();
 		} catch (e) {
@@ -216,14 +217,14 @@
 </script>
 
 <svelte:head>
-	<title>Settings - BirdNET-Pi</title>
+	<title>Settings - {$activeSiteName}</title>
 </svelte:head>
 
 <div class="container mx-auto px-4 py-6">
 	<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
 		<div>
 			<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
-			<p class="text-gray-600 dark:text-gray-400 mt-1">Configure BirdNET-Pi</p>
+			<p class="text-gray-600 dark:text-gray-400 mt-1">Configure {$activeSiteName}</p>
 		</div>
 		<a href="/settings/advanced" class="btn-secondary">Advanced Settings</a>
 	</div>

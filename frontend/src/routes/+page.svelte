@@ -2,7 +2,8 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { detections, health, species as speciesApi, system as systemApi, type Detection, type DetectionStats, type SpeciesSummary, type RangeChartData } from '$lib/api';
 	import { StatsCard, DetectionCard, ExternalLinks, SpeciesImage, Modal } from '$lib/components';
-	import { auth, toasts } from '$lib/stores';
+	import { auth, setSiteIdentity, siteName, toasts } from '$lib/stores';
+	import { speciesReviewHref } from '$lib/reviewNavigation.js';
 
 	let ChartJS: typeof import('chart.js/auto').default;
 
@@ -13,7 +14,6 @@
 	let topSpeciesExpanded = false;
 
 	const TOP_SPECIES_PREVIEW = 6;
-	let siteName: string = 'BirdNET-Pi';
 	let loading = true;
 	let refreshInterval: ReturnType<typeof setInterval>;
 
@@ -120,7 +120,7 @@
 		? displayedTopSpecies
 		: displayedTopSpecies.slice(0, TOP_SPECIES_PREVIEW);
 	$: canExpandTopSpecies = displayedTopSpecies.length > TOP_SPECIES_PREVIEW;
-	$: speciesViewAllHref = topSpeciesMode === 'today' ? `/species?date=today` : '/species';
+	$: topSpeciesTitle = topSpeciesMode === 'today' ? 'Top Species Today' : 'Top Species All Time';
 
 	function setTopSpeciesMode(mode: 'today' | 'all') {
 		topSpeciesMode = mode;
@@ -149,7 +149,11 @@
 			newSpeciesTodayDetections = newSpeciesData;
 			newSpeciesTodaySet = pinnedSpecies;
 			groupedDetections = sortDetectionGroups(groupLatest(mergedDetections), pinnedSpecies);
-			siteName = infoData.site_name;
+			setSiteIdentity({
+				siteName: infoData.site_name,
+				customImage: infoData.custom_image,
+				customImageTitle: infoData.custom_image_title,
+			});
 			topSpeciesToday = speciesTodayData.species;
 			topSpeciesAllTime = speciesAllTimeData.species;
 			topSpeciesExpanded = false;
@@ -359,72 +363,59 @@
 </script>
 
 <svelte:head>
-	<title>{siteName} - Dashboard</title>
+	<title>{$siteName} - Dashboard</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-6 overflow-x-hidden">
-	<!-- Header -->
-	<div class="mb-8">
-		<div class="flex flex-wrap items-center justify-between gap-3">
-			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
-				{siteName}
-			</h1>
-			<a href="/detections" class="btn-primary">Review Detections</a>
-		</div>
-		<p class="text-gray-600 dark:text-gray-400 mt-1">
-			What's happening now
-		</p>
-	</div>
-
+<div class="page-shell overflow-x-hidden">
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else}
 		<!-- Stats Grid -->
-		<div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
-			<StatsCard
-				value={stats?.total_count || 0}
-				label="Total"
-				icon="total"
-				href={insightsHref('total')}
-				compact={true}
-			/>
-			<StatsCard
-				value={stats?.todays_count || 0}
-				label="Today"
-				icon="today"
-				href={insightsHref('today')}
-				compact={true}
-			/>
-			<StatsCard
-				value={stats?.hour_count || 0}
-				label="Last Hour"
-				icon="hour"
-				href={insightsHref('hour')}
-				compact={true}
-			/>
-			<StatsCard
-				value={stats?.new_species_today || 0}
-				label="New Species"
-				icon="new"
-				href={insightsHref('new_species_today')}
-				compact={true}
-			/>
-			<StatsCard
-				value={stats?.todays_species_tally || 0}
-				label="Species Today"
-				icon="species"
-				href={insightsHref('species_today')}
-				compact={true}
-			/>
-			<StatsCard
-				value={stats?.species_tally || 0}
-				label="All Species"
-				icon="species"
-				href={insightsHref('all_species')}
-				compact={true}
-			/>
+		<div class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+			<div class="min-w-0 self-start">
+				<StatsCard
+					value={stats?.todays_count || 0}
+					label="Today"
+					icon="today"
+					href={insightsHref('today')}
+					compact={true}
+				/>
+				<div class="mt-2 px-1 text-sm text-gray-600 dark:text-gray-400">
+					<a href={insightsHref('total')} class="hover:text-primary-700 hover:underline dark:hover:text-primary-300">
+						{stats?.total_count || 0} total detections
+					</a>
+				</div>
+			</div>
+			<div class="min-w-0 self-start">
+				<StatsCard
+					value={stats?.hour_count || 0}
+					label="Last Hour"
+					icon="hour"
+					href={insightsHref('hour')}
+					compact={true}
+				/>
+			</div>
+			<div class="min-w-0 self-start">
+				<StatsCard
+					value={stats?.todays_species_tally || 0}
+					label="Species Today"
+					icon="species"
+					href={insightsHref('species_today')}
+					compact={true}
+				/>
+				<div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1 text-sm text-gray-600 dark:text-gray-400">
+					<a href={insightsHref('all_species')} class="hover:text-primary-700 hover:underline dark:hover:text-primary-300">
+						{stats?.species_tally || 0} all-time species
+					</a>
+					{#if (stats?.new_species_today || 0) > 0}
+						<a href={insightsHref('new_species_today')} class="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
+							{stats?.new_species_today || 0} new species
+						</a>
+					{/if}
+				</div>
+			</div>
 		</div>
 
 		{#if newSpeciesTodayDetections.length > 0}
@@ -487,9 +478,9 @@
 
 		<!-- Top Species -->
 		<div class="card mb-8">
-				<div class="card-header flex items-center justify-between">
+				<div class="card-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<div class="flex items-center gap-3">
-						<h3 class="font-semibold text-gray-900 dark:text-gray-100">Top Species</h3>
+						<h3 class="font-semibold text-gray-900 dark:text-gray-100">{topSpeciesTitle}</h3>
 						<div class="inline-flex rounded-lg border border-gray-200 dark:border-dark-border overflow-hidden text-xs">
 							<button
 								type="button"
@@ -517,9 +508,6 @@
 								{topSpeciesExpanded ? 'Show less' : `Show all ${displayedTopSpecies.length}`}
 							</button>
 						{/if}
-						<a href={speciesViewAllHref} class="text-primary-600 dark:text-primary-400 hover:underline text-sm">
-							{topSpeciesMode === 'today' ? 'Species today →' : 'View all →'}
-						</a>
 					</div>
 				</div>
 				{#if displayedTopSpecies.length === 0}
@@ -535,24 +523,34 @@
 						</p>
 					</div>
 				{:else}
-					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 divide-gray-200 dark:divide-dark-border">
-						{#each visibleTopSpecies as sp (sp.Sci_Name)}
-							<div class="flex items-center gap-4 px-6 py-3 hover:bg-gray-50 dark:hover:bg-dark-border transition-colors">
+					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+						{#each visibleTopSpecies as sp, index (sp.Sci_Name)}
+							<div class="flex min-w-0 items-start gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-dark-border">
+								<span class="mt-1 w-5 flex-shrink-0 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">
+									{index + 1}
+								</span>
 								<div class="flex-shrink-0 rounded-full overflow-hidden">
 									<SpeciesImage sciName={sp.Sci_Name} size="xs" />
 								</div>
 								<div class="flex-1 min-w-0">
-									<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="block">
-										<p class="font-medium text-gray-900 dark:text-gray-100 truncate hover:underline">{sp.Com_Name}</p>
+									<div class="flex min-w-0 items-start justify-between gap-3">
+										<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="block min-w-0">
+											<p class="font-medium text-gray-900 dark:text-gray-100 truncate hover:underline">{sp.Com_Name}</p>
+										</a>
+										<a
+											href={speciesReviewHref(sp.Sci_Name, topSpeciesMode === 'today' ? todayStr() : '')}
+											class="flex-shrink-0 rounded-md bg-primary-50 px-2 py-0.5 text-sm font-semibold text-primary-700 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/50"
+											aria-label={`${sp.Count} ${sp.Count === 1 ? 'detection' : 'detections'} for ${sp.Com_Name}`}
+										>
+											{sp.Count}
+										</a>
+									</div>
+									<a href="/species/{encodeURIComponent(sp.Sci_Name)}" class="block min-w-0">
 										<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">{sp.Sci_Name}</p>
 									</a>
 									<div class="mt-1">
 										<ExternalLinks sciName={sp.Sci_Name} comName={sp.Com_Name} compact={true} />
 									</div>
-								</div>
-								<div class="flex-shrink-0 text-right">
-									<span class="text-lg font-semibold text-primary-600 dark:text-primary-400">{sp.Count}</span>
-									<p class="text-xs text-gray-500 dark:text-gray-400">{sp.Count === 1 ? 'detection' : 'detections'}</p>
 								</div>
 							</div>
 						{/each}
@@ -562,16 +560,23 @@
 
 		<!-- Latest Detections -->
 		<div class="mb-8">
-			<div class="flex items-center justify-between mb-2">
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-					Latest Detections
-				</h2>
+			<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+				<div class="flex flex-wrap items-center gap-2">
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+						Latest Detections
+					</h2>
+					{#if groupedDetections.length > 0}
+						<span class="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-nav dark:text-gray-300">
+							{groupedDetections.length} species
+						</span>
+					{/if}
+				</div>
 				<a href="/detections" class="text-primary-600 dark:text-primary-400 hover:underline text-sm">
 					Open Review →
 				</a>
 			</div>
 			<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-				Group view by species to reduce duplicate-card clutter. New species are pinned first.
+				Most recent recording for each species. Repeats are summarized on the card.
 			</p>
 
 			{#if groupedDetections.length === 0}
@@ -585,14 +590,14 @@
 					</p>
 				</div>
 			{:else}
-				<div class="grid gap-4 md:grid-cols-2">
+				<div class="grid gap-3 md:grid-cols-2">
 					{#each groupedDetections as group (group.sciName)}
 						<DetectionCard
 							detection={group.latest}
 							showDate={false}
 							href={detectionsHref(group.latest, { newOnDate: isPinnedNewSpecies(group.sciName) })}
 							allowSpectrogramExpand={false}
-							tagLabel={isPinnedNewSpecies(group.sciName) ? 'New species today' : null}
+							tagLabel={isPinnedNewSpecies(group.sciName) ? 'New today' : null}
 							groupedCount={group.count}
 						/>
 					{/each}

@@ -198,7 +198,9 @@ export const media = {
 
 	dates: () => request<{ dates: string[] }>('/media/dates'),
 
-	speciesForDate: (date: string) => request<{ date: string; species: { name: string; count: number }[] }>(`/media/dates/${date}/species`),
+	species: () => request<{ species: RecordingSpeciesSummary[] }>('/media/species'),
+
+	speciesForDate: (date: string) => request<{ date: string; species: RecordingSpeciesSummary[] }>(`/media/dates/${date}/species`),
 
 	filesForSpecies: (date: string, species: string) =>
 		request<{ date: string; species: string; files: { name: string; has_spectrogram: boolean; size: number }[] }>(
@@ -368,7 +370,17 @@ export const integrations = {
 // Health API
 export const health = {
 	check: () => request<{ status: string; site_name: string }>('/health'),
-	info: () => request<{ name: string; version: string; site_name: string; latitude: number; longitude: number; model: string }>('/info'),
+	info: () =>
+		request<{
+			name: string;
+			version: string;
+			site_name: string;
+			latitude: number;
+			longitude: number;
+			model: string;
+			custom_image: string;
+			custom_image_title: string;
+		}>('/info'),
 };
 
 // Types
@@ -496,6 +508,14 @@ export interface SpeciesDetectionsResponse {
 export interface SpeciesListMembership {
 	species: string;
 	lists: Record<'include' | 'exclude' | 'whitelist' | 'confirmed', boolean>;
+}
+
+export interface RecordingSpeciesSummary {
+	name: string;
+	count: number;
+	latest_date?: string;
+	sci_name?: string;
+	com_name?: string;
 }
 
 export interface Config {

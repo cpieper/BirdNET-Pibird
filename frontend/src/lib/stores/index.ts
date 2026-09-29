@@ -1,6 +1,41 @@
 import { writable, derived } from 'svelte/store';
 import type { Detection, DetectionStats, SpeciesSummary } from '$lib/api';
 
+export const DEFAULT_SITE_NAME = 'BirdNET-Pi';
+
+function bootstrappedSiteName(): string {
+	if (typeof window === 'undefined') return DEFAULT_SITE_NAME;
+	return window.__BIRDNET_BOOTSTRAP__?.siteName?.trim() || DEFAULT_SITE_NAME;
+}
+
+function bootstrappedCustomImage(): string {
+	if (typeof window === 'undefined') return '';
+	return window.__BIRDNET_BOOTSTRAP__?.customImage?.trim() || '';
+}
+
+function bootstrappedCustomImageTitle(): string {
+	if (typeof window === 'undefined') return '';
+	return window.__BIRDNET_BOOTSTRAP__?.customImageTitle?.trim() || '';
+}
+
+export const siteName = writable(bootstrappedSiteName());
+export const customImage = writable(bootstrappedCustomImage());
+export const customImageTitle = writable(bootstrappedCustomImageTitle());
+
+export function setSiteName(name: string | null | undefined) {
+	siteName.set(name?.trim() || DEFAULT_SITE_NAME);
+}
+
+export function setSiteIdentity(identity: {
+	siteName?: string | null;
+	customImage?: string | null;
+	customImageTitle?: string | null;
+}) {
+	setSiteName(identity.siteName);
+	customImage.set(identity.customImage?.trim() || '');
+	customImageTitle.set(identity.customImageTitle?.trim() || '');
+}
+
 // Theme store
 function createThemeStore() {
 	const { subscribe, set, update } = writable<'light' | 'dark'>('light');

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { detections, species as speciesApi, type SpeciesSummary } from '$lib/api';
-	import { ExternalLinks, SpeciesImage } from '$lib/components';
+	import { DatePicker, ExternalLinks, SpeciesImage } from '$lib/components';
 	import { toasts } from '$lib/stores';
 
 	type DateFilter = 'all' | 'today' | 'pick';
@@ -13,6 +13,8 @@
 	let dateFilter: DateFilter = 'all';
 	let pickedDate = '';
 	let availableDates: string[] = [];
+	$: datePickerValue =
+		dateFilter === 'all' ? '' : dateFilter === 'today' ? todayStr() : pickedDate;
 
 	$: filteredSpecies = searchTerm
 		? speciesList.filter(
@@ -113,14 +115,26 @@
 
 	function setDateFilter(filter: DateFilter) {
 		dateFilter = filter;
-		if (filter === 'pick' && !pickedDate) {
+		if (filter === 'all') {
+			pickedDate = '';
+		} else if (filter === 'today') {
+			pickedDate = todayStr();
+		} else if (!pickedDate) {
 			pickedDate = availableDates[0] || todayStr();
 		}
 		syncUrl();
 		void loadSpecies();
 	}
 
-	function handlePickedDateChange() {
+	function handleDatePickerChange(event: CustomEvent<string>) {
+		const nextDate = event.detail;
+		if (!nextDate) {
+			dateFilter = 'all';
+			pickedDate = '';
+		} else {
+			dateFilter = nextDate === todayStr() ? 'today' : 'pick';
+			pickedDate = nextDate;
+		}
 		syncUrl();
 		void loadSpecies();
 	}
@@ -136,9 +150,6 @@
 	onMount(async () => {
 		parseUrl();
 		await loadDates();
-		if (dateFilter === 'pick' && !pickedDate) {
-			pickedDate = availableDates[0] || todayStr();
-		}
 		await loadSpecies();
 	});
 </script>
@@ -147,100 +158,74 @@
 	<title>Species - BirdNET-Pi</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-6">
-	<div class="mb-6 flex items-center justify-between gap-4">
+<div class="page-shell">
+	<div class="page-header">
 		<div>
-			<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Species</h1>
-			<p class="text-gray-600 dark:text-gray-400 mt-1">{subtitle}</p>
+			<h1 class="page-title">Species</h1>
+			<p class="page-subtitle">{subtitle}</p>
 		</div>
-		<a href="/species/manage" class="btn-secondary">Manage Lists</a>
+		<a href="/species/manage" class="btn-secondary self-start sm:self-auto">Manage Lists</a>
 	</div>
 
 	<!-- Filters -->
-	<div class="card p-4 mb-6">
-		<div class="flex flex-col gap-4">
+	<div class="filter-card">
+		<div class="grid gap-3 lg:grid-cols-[minmax(16rem,18rem)_auto_minmax(16rem,1fr)_12rem] lg:items-end">
+			<DatePicker
+				id="speciesDate"
+				label="Date"
+				value={datePickerValue}
+				dates={availableDates}
+				includeAll={true}
+				allLabel="All"
+				on:change={handleDatePickerChange}
+			/>
+
 			<div>
-				<span class="label block mb-2">Time range</span>
-				<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-					<div class="inline-flex rounded-lg border border-gray-200 dark:border-dark-border overflow-hidden text-sm">
-						<button
-							type="button"
-							class="px-4 py-2 {dateFilter === 'today'
-								? 'bg-primary-600 text-white'
-								: 'bg-white dark:bg-dark-card text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-border'}"
-							on:click={() => setDateFilter('today')}
-						>
-							Today
-						</button>
-						<button
-							type="button"
-							class="px-4 py-2 border-l border-gray-200 dark:border-dark-border {dateFilter === 'all'
-								? 'bg-primary-600 text-white'
-								: 'bg-white dark:bg-dark-card text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-border'}"
-							on:click={() => setDateFilter('all')}
-						>
-							All time
-						</button>
-						<button
-							type="button"
-							class="px-4 py-2 border-l border-gray-200 dark:border-dark-border {dateFilter === 'pick'
-								? 'bg-primary-600 text-white'
-								: 'bg-white dark:bg-dark-card text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-border'}"
-							on:click={() => setDateFilter('pick')}
-						>
-							Pick date
-						</button>
-					</div>
-					{#if dateFilter === 'pick'}
-						<div class="w-full sm:w-auto sm:min-w-[12rem]">
-							<label for="pickedDate" class="sr-only">Date</label>
-							<select
-								id="pickedDate"
-								bind:value={pickedDate}
-								on:change={handlePickedDateChange}
-								class="select w-full text-sm"
-							>
-								{#if availableDates.length === 0}
-									<option value={pickedDate}>{pickedDate || 'No dates yet'}</option>
-								{:else}
-									{#each availableDates as date}
-										<option value={date}>{date}</option>
-									{/each}
-								{/if}
-							</select>
-						</div>
-					{/if}
-				</div>
+				<label for="speciesToday" class="sr-only">Today</label>
+				<button
+					id="speciesToday"
+					type="button"
+					class="inline-flex w-full items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition-colors lg:min-w-24 {dateFilter === 'today'
+						? 'border-primary-600 bg-primary-600 text-white'
+						: 'border-gray-300 bg-white text-gray-600 hover:bg-gray-100 dark:border-dark-border dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-hover'}"
+					aria-pressed={dateFilter === 'today'}
+					on:click={() => setDateFilter('today')}
+				>
+					Today
+				</button>
 			</div>
 
-			<div class="flex flex-col md:flex-row gap-4">
-				<div class="flex-1">
-					<label for="search" class="label">Search</label>
-					<input
-						id="search"
-						type="text"
-						bind:value={searchTerm}
-						placeholder="Search species..."
-						class="input"
-					/>
-				</div>
-				<div class="w-full md:w-48">
-					<label for="sort" class="label">Sort by</label>
-					<select id="sort" bind:value={sortBy} on:change={handleSortChange} class="select">
-						<option value="count">Detection count</option>
-						<option value="confidence">Max confidence</option>
-						<option value="date">Most recent</option>
-						<option value="name">Name</option>
-					</select>
-				</div>
+			<div>
+				<label for="search" class="label">Search</label>
+				<input
+					id="search"
+					type="text"
+					bind:value={searchTerm}
+					placeholder="Search species..."
+					class="input"
+				/>
+			</div>
+
+			<div>
+				<label for="sort" class="label">Sort by</label>
+				<select id="sort" bind:value={sortBy} on:change={handleSortChange} class="select">
+					<option value="count">Detection count</option>
+					<option value="confidence">Max confidence</option>
+					<option value="date">Most recent</option>
+					<option value="name">Name</option>
+				</select>
 			</div>
 		</div>
 	</div>
 
 	<!-- Species count -->
-	<p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-		{filteredSpecies.length} species
-	</p>
+	<div class="section-header">
+		<div>
+			<h2 class="section-title">Detected species</h2>
+			<p class="section-subtitle">Browse historical species records and open detail pages.</p>
+		</div>
+		<span class="metric-pill">{filteredSpecies.length} species</span>
+	</div>
 
 	<!-- Species list -->
 	{#if loading}
@@ -252,27 +237,27 @@
 			<p class="text-gray-600 dark:text-gray-400">{emptyMessage}</p>
 		</div>
 	{:else}
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+		<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
 			{#each filteredSpecies as sp (sp.Sci_Name)}
-				<div class="card p-4 flex gap-4 hover:shadow-lg transition-shadow">
+				<div class="species-card">
 					<SpeciesImage sciName={sp.Sci_Name} size="sm" />
 					<div class="flex-1 min-w-0">
 						<a href="/species/{encodeURIComponent(sp.Sci_Name)}">
-							<h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate hover:underline">
+							<h3 class="species-card-title hover:underline">
 								{sp.Com_Name}
 							</h3>
-							<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">
+							<p class="species-card-subtitle">
 								{sp.Sci_Name}
 							</p>
 						</a>
 						<div class="mt-1">
 							<ExternalLinks sciName={sp.Sci_Name} comName={sp.Com_Name} compact={true} />
 						</div>
-						<div class="mt-2 flex items-center gap-4 text-sm">
-							<span class="text-gray-600 dark:text-gray-400">
+						<div class="species-card-meta">
+							<span class="metric-pill">
 								{sp.Count} {sp.Count === 1 ? 'detection' : 'detections'}{dateFilter === 'all' ? '' : ' on this day'}
 							</span>
-							<span class="badge-primary">
+							<span class="metric-pill-primary">
 								{formatConfidence(sp.MaxConfidence)}
 							</span>
 						</div>
