@@ -7,6 +7,7 @@
 	import { speciesReviewHref } from '$lib/reviewNavigation.js';
 
 	let stats: DetectionStats | null = null;
+	let dashboardDate = '';
 	let topSpeciesToday: SpeciesSummary[] = [];
 	let topSpeciesAllTime: SpeciesSummary[] = [];
 	let topSpeciesMode: 'today' | 'all' = 'today';
@@ -115,7 +116,7 @@
 	let featuredDetection: Detection | null = null;
 
 	$: activitySegments = buildActivitySegments(hourlyData);
-	$: discoveryPreview = buildDiscoveryPreview(newSpeciesTodayDetections);
+	$: discoveryPreview = buildDiscoveryPreview(newSpeciesTodayDetections, 3, dashboardDate);
 	$: hasDiscoveryNote = discoveryPreview.total > 0;
 	$: featuredIsFirstStationRecord = featuredDetection
 		? isFirstStationRecord(featuredDetection.Sci_Name, newSpeciesTodaySet)
@@ -146,6 +147,7 @@
 			featuredDetection = selectLatestDetection(mergedDetections);
 
 			stats = statsData;
+			dashboardDate = detectionsData.date;
 			newSpeciesTodayDetections = newSpeciesData;
 			newSpeciesTodaySet = pinnedSpecies;
 			groupedDetections = sortDetectionGroups(groupLatest(mergedDetections), pinnedSpecies);
@@ -265,7 +267,7 @@
 				showActivityStrip={hasDiscoveryNote}
 			/>
 			<div class="space-y-4 {hasDiscoveryNote ? '' : 'order-3 lg:order-2'}">
-				<DashboardSummary {stats} />
+				<DashboardSummary {stats} date={dashboardDate} />
 				{#if hasDiscoveryNote}
 					<DiscoveryNote discovery={discoveryPreview} />
 				{/if}

@@ -69,11 +69,11 @@ export function isFirstStationRecord(sciName: string, firstStationRecordSet: Set
 	return firstStationRecordSet.has(sciName);
 }
 
-export function buildDiscoveryPreview(detections: Detection[], maxVisible = 3): DiscoveryPreview {
+export function buildDiscoveryPreview(detections: Detection[], maxVisible = 3, date = todayStr()): DiscoveryPreview {
 	const visible = detections.slice(0, maxVisible);
 	const hiddenCount = Math.max(0, detections.length - visible.length);
 	const params = new URLSearchParams({
-		date: todayStr(),
+		date,
 		new_on_date: 'true',
 	});
 

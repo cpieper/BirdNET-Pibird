@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import {
 		detections,
 		media,
@@ -33,6 +33,7 @@
 	let passwordInput = '';
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 	let speciesSuggestionsVisible = false;
+	let activeSuggestionIndex = -1;
 	let speciesSuggestionsHideTimer: ReturnType<typeof setTimeout> | undefined;
 	let detectionsRequestId = 0;
 
@@ -171,6 +172,7 @@
 	}
 
 	function handleSpeciesQueryInput() {
+		activeSuggestionIndex = -1;
 		speciesSuggestionsVisible = true;
 		applySpeciesQuery();
 	}
@@ -181,8 +183,39 @@
 	}
 
 	function handleSpeciesQueryFocus() {
+		activeSuggestionIndex = -1;
 		if (speciesSuggestionsHideTimer) clearTimeout(speciesSuggestionsHideTimer);
 		speciesSuggestionsVisible = true;
+	}
+
+	async function handleSpeciesQueryKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' || event.key === 'Tab') {
+			if (event.key === 'Escape') event.preventDefault();
+			speciesSuggestionsVisible = false;
+			activeSuggestionIndex = -1;
+			return;
+		}
+		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			if (speciesSuggestions.length === 0) return;
+			event.preventDefault();
+			speciesSuggestionsVisible = true;
+			const step = event.key === 'ArrowDown' ? 1 : -1;
+			activeSuggestionIndex = activeSuggestionIndex < 0
+				? (step === 1 ? 0 : speciesSuggestions.length - 1)
+				: (activeSuggestionIndex + step + speciesSuggestions.length) % speciesSuggestions.length;
+			const index = activeSuggestionIndex;
+			await tick();
+			if (showSpeciesSuggestions && index === activeSuggestionIndex) {
+				document.getElementById(`species-suggestion-${index}`)?.scrollIntoView?.({ block: 'nearest' });
+			}
+			return;
+		}
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			const selected = showSpeciesSuggestions ? speciesSuggestions[activeSuggestionIndex] : undefined;
+			if (selected) selectSpeciesSuggestion(selected);
+			else handleSpeciesQueryCommit();
+		}
 	}
 
 	function handleSpeciesQueryBlur() {
@@ -197,6 +230,7 @@
 		selectedSpecies = species.Sci_Name;
 		searchTerm = '';
 		speciesQuery = species.Com_Name;
+		activeSuggestionIndex = -1;
 		speciesSuggestionsVisible = false;
 		if (searchTimer) clearTimeout(searchTimer);
 		void loadDetections(true);
@@ -382,6 +416,7 @@
 					bind:value={speciesQuery}
 					on:focus={handleSpeciesQueryFocus}
 					on:input={handleSpeciesQueryInput}
+					on:keydown={handleSpeciesQueryKeydown}
 					on:change={handleSpeciesQueryCommit}
 					on:blur={handleSpeciesQueryBlur}
 					autocomplete="off"
@@ -389,7 +424,8 @@
 					class="input"
 					role="combobox"
 					aria-autocomplete="list"
-					aria-controls="speciesSuggestions"
+					aria-controls={showSpeciesSuggestions ? 'speciesSuggestions' : undefined}
+					aria-activedescendant={showSpeciesSuggestions && activeSuggestionIndex >= 0 ? `species-suggestion-${activeSuggestionIndex}` : undefined}
 					aria-expanded={showSpeciesSuggestions}
 				/>
 				{#if showSpeciesSuggestions}
@@ -398,12 +434,16 @@
 						class="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-border dark:bg-dark-card"
 						role="listbox"
 					>
-						{#each speciesSuggestions as species (species.Sci_Name)}
+						{#each speciesSuggestions as species, index (species.Sci_Name)}
 							<button
 								type="button"
+								id="species-suggestion-{index}"
+								tabindex="-1"
+								class:bg-primary-50={index === activeSuggestionIndex}
+								class:dark:bg-dark-hover={index === activeSuggestionIndex}
 								class="flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-primary-50 focus:bg-primary-50 focus:outline-none dark:hover:bg-dark-hover dark:focus:bg-dark-hover"
 								role="option"
-								aria-selected={species.Sci_Name === selectedSpecies}
+								aria-selected={index === activeSuggestionIndex}
 								on:mousedown|preventDefault
 								on:click={() => selectSpeciesSuggestion(species)}
 							>
