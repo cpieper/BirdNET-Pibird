@@ -12,6 +12,7 @@
 	import { DatePicker, DetectionCard, Modal } from '$lib/components';
 	import { findExactSpeciesMatch, getSpeciesSuggestions } from '$lib/speciesSearch';
 	import { auth, toasts } from '$lib/stores';
+	import { reviewDateFromQuery } from '$lib/reviewNavigation.js';
 
 	let allDetections: Detection[] = [];
 	let loading = true;
@@ -329,7 +330,7 @@
 
 	onMount(async () => {
 		const query = new URLSearchParams(window.location.search);
-		selectedDate = query.get('date') || todayStr();
+		selectedDate = reviewDateFromQuery(query, todayStr());
 		selectedSpecies = query.get('species') || '';
 		searchTerm = query.get('search') || '';
 		speciesQuery = selectedSpecies || searchTerm;

@@ -3,6 +3,7 @@
 	import { integrations, species as speciesApi, type Detection, type SpeciesExternalLinks, type SpeciesStats } from '$lib/api';
 	import { DetectionCard, ExternalLinks, SpeciesImage } from '$lib/components';
 	import { toasts } from '$lib/stores';
+	import { speciesReviewHref } from '$lib/reviewNavigation.js';
 
 	$: sciName = decodeURIComponent($page.params.sciName ?? '');
 
@@ -96,7 +97,7 @@
 					</div>
 					<div class="mt-4">
 						<a
-							href="/detections?species={encodeURIComponent(stats.sci_name)}"
+							href={speciesReviewHref(stats.sci_name, '')}
 							class="btn-secondary btn-sm"
 						>
 							Open Review for this species
