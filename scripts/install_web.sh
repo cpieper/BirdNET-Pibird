@@ -195,7 +195,7 @@ resume_services_after_build() {
     BUILD_PAUSED_SERVICES=()
 }
 
-build_frontend() {
+build_frontend() (
     echo_step "Checking frontend build..."
     if ! frontend_build_needed; then
         echo_info "Frontend sources unchanged; skipping npm install and build"
@@ -203,15 +203,16 @@ build_frontend() {
     fi
 
     echo_step "Building frontend..."
+    # A subshell EXIT trap also runs when set -e aborts dependency installation
+    # or the build. RETURN traps do not run when the shell exits on an error.
+    trap resume_services_after_build EXIT
     pause_services_for_build
-    trap resume_services_after_build RETURN
 
     cd "$BIRDNET_DIR/frontend"
     
     # Install npm dependencies
-    # Use 'npm install' instead of 'npm ci' in case package-lock.json is missing
     if [ -f "package-lock.json" ]; then
-        npm ci --silent
+        npm ci
     else
         echo_info "No package-lock.json found, running npm install..."
         npm install
@@ -223,10 +224,10 @@ build_frontend() {
     mkdir -p "$BIRDNET_DIR/frontend/build"
     printf '%s\n' "$FRONTEND_SOURCE_HASH" > "$FRONTEND_BUILD_STAMP"
     
-    trap - RETURN
     resume_services_after_build
+    trap - EXIT
     echo_info "Frontend built successfully"
-}
+)
 
 install_systemd_service() {
     echo_step "Installing systemd service..."
