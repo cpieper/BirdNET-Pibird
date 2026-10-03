@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import {
 		detections,
 		media,
@@ -10,6 +10,7 @@
 	} from '$lib/api';
 	import { verifyPasswordLogin } from '$lib/auth';
 	import { DatePicker, DetectionCard, Modal } from '$lib/components';
+	import { findExactSpeciesMatch, getSpeciesSuggestions } from '$lib/speciesSearch';
 	import { auth, toasts } from '$lib/stores';
 	import { reviewDateFromQuery } from '$lib/reviewNavigation.js';
 
@@ -31,6 +32,9 @@
 	let showLoginModal = false;
 	let passwordInput = '';
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
+	let speciesSuggestionsVisible = false;
+	let activeSuggestionIndex = -1;
+	let speciesSuggestionsHideTimer: ReturnType<typeof setTimeout> | undefined;
 	let detectionsRequestId = 0;
 
 	$: selectedSpeciesLabel =
@@ -39,6 +43,9 @@
 	$: speciesFilterLabel = selectedSpecies ? selectedSpeciesLabel : searchTerm;
 	$: hasActiveFilters = Boolean(selectedDate || hasSpeciesFilter || newOnDateOnly);
 	$: resultLabel = `Showing ${allDetections.length} of ${total} ${hasSpeciesFilter ? 'matching detections' : 'detections'}`;
+	$: speciesSuggestions = getSpeciesSuggestions(speciesQuery, speciesOptions);
+	$: showSpeciesSuggestions =
+		speciesSuggestionsVisible && speciesQuery.trim().length > 0 && speciesSuggestions.length > 0;
 
 	function todayStr(): string {
 		const d = new Date();
@@ -139,18 +146,8 @@
 		void loadDetections(true);
 	}
 
-	function normalizeSpeciesValue(value: string): string {
-		return value.trim().toLowerCase();
-	}
-
 	function speciesMatchForQuery(value: string): SpeciesSummary | undefined {
-		const query = normalizeSpeciesValue(value);
-		if (!query) return undefined;
-		return speciesOptions.find(
-			(species) =>
-				normalizeSpeciesValue(species.Com_Name) === query ||
-				normalizeSpeciesValue(species.Sci_Name) === query
-		);
+		return findExactSpeciesMatch(value, speciesOptions);
 	}
 
 	function syncSpeciesQueryFromFilters() {
@@ -175,11 +172,68 @@
 	}
 
 	function handleSpeciesQueryInput() {
+		activeSuggestionIndex = -1;
+		speciesSuggestionsVisible = true;
 		applySpeciesQuery();
 	}
 
 	function handleSpeciesQueryCommit() {
+		speciesSuggestionsVisible = false;
 		applySpeciesQuery(true);
+	}
+
+	function handleSpeciesQueryFocus() {
+		activeSuggestionIndex = -1;
+		if (speciesSuggestionsHideTimer) clearTimeout(speciesSuggestionsHideTimer);
+		speciesSuggestionsVisible = true;
+	}
+
+	async function handleSpeciesQueryKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' || event.key === 'Tab') {
+			if (event.key === 'Escape') event.preventDefault();
+			speciesSuggestionsVisible = false;
+			activeSuggestionIndex = -1;
+			return;
+		}
+		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			if (speciesSuggestions.length === 0) return;
+			event.preventDefault();
+			speciesSuggestionsVisible = true;
+			const step = event.key === 'ArrowDown' ? 1 : -1;
+			activeSuggestionIndex = activeSuggestionIndex < 0
+				? (step === 1 ? 0 : speciesSuggestions.length - 1)
+				: (activeSuggestionIndex + step + speciesSuggestions.length) % speciesSuggestions.length;
+			const index = activeSuggestionIndex;
+			await tick();
+			if (showSpeciesSuggestions && index === activeSuggestionIndex) {
+				document.getElementById(`species-suggestion-${index}`)?.scrollIntoView?.({ block: 'nearest' });
+			}
+			return;
+		}
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			const selected = showSpeciesSuggestions ? speciesSuggestions[activeSuggestionIndex] : undefined;
+			if (selected) selectSpeciesSuggestion(selected);
+			else handleSpeciesQueryCommit();
+		}
+	}
+
+	function handleSpeciesQueryBlur() {
+		if (speciesSuggestionsHideTimer) clearTimeout(speciesSuggestionsHideTimer);
+		speciesSuggestionsHideTimer = setTimeout(() => {
+			speciesSuggestionsVisible = false;
+		}, 120);
+	}
+
+	function selectSpeciesSuggestion(species: SpeciesSummary) {
+		if (speciesSuggestionsHideTimer) clearTimeout(speciesSuggestionsHideTimer);
+		selectedSpecies = species.Sci_Name;
+		searchTerm = '';
+		speciesQuery = species.Com_Name;
+		activeSuggestionIndex = -1;
+		speciesSuggestionsVisible = false;
+		if (searchTimer) clearTimeout(searchTimer);
+		void loadDetections(true);
 	}
 
 	function clearDateFilter() {
@@ -193,6 +247,7 @@
 		selectedSpecies = '';
 		searchTerm = '';
 		speciesQuery = '';
+		speciesSuggestionsVisible = false;
 		if (searchTimer) clearTimeout(searchTimer);
 		void loadDetections(true);
 	}
@@ -202,6 +257,7 @@
 		selectedSpecies = '';
 		searchTerm = '';
 		speciesQuery = '';
+		speciesSuggestionsVisible = false;
 		newOnDateOnly = false;
 		if (searchTimer) clearTimeout(searchTimer);
 		void loadSpeciesOptions();
@@ -320,6 +376,7 @@
 
 	onDestroy(() => {
 		if (searchTimer) clearTimeout(searchTimer);
+		if (speciesSuggestionsHideTimer) clearTimeout(speciesSuggestionsHideTimer);
 	});
 </script>
 
@@ -351,23 +408,60 @@
 
 		<div class="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_16rem_auto] lg:items-end">
 			<!-- Species search -->
-			<div>
+			<div class="relative">
 				<label for="speciesSearch" class="label">Species</label>
 				<input
 					id="speciesSearch"
 					type="text"
 					bind:value={speciesQuery}
+					on:focus={handleSpeciesQueryFocus}
 					on:input={handleSpeciesQueryInput}
+					on:keydown={handleSpeciesQueryKeydown}
 					on:change={handleSpeciesQueryCommit}
-					list="speciesOptionsList"
+					on:blur={handleSpeciesQueryBlur}
+					autocomplete="off"
 					placeholder="Search or choose species..."
 					class="input"
+					role="combobox"
+					aria-autocomplete="list"
+					aria-controls={showSpeciesSuggestions ? 'speciesSuggestions' : undefined}
+					aria-activedescendant={showSpeciesSuggestions && activeSuggestionIndex >= 0 ? `species-suggestion-${activeSuggestionIndex}` : undefined}
+					aria-expanded={showSpeciesSuggestions}
 				/>
-				<datalist id="speciesOptionsList">
-					{#each speciesOptions as species}
-						<option value={species.Com_Name}>{species.Sci_Name}</option>
-					{/each}
-				</datalist>
+				{#if showSpeciesSuggestions}
+					<div
+						id="speciesSuggestions"
+						class="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-border dark:bg-dark-card"
+						role="listbox"
+					>
+						{#each speciesSuggestions as species, index (species.Sci_Name)}
+							<button
+								type="button"
+								id="species-suggestion-{index}"
+								tabindex="-1"
+								class:bg-primary-50={index === activeSuggestionIndex}
+								class:dark:bg-dark-hover={index === activeSuggestionIndex}
+								class="flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-primary-50 focus:bg-primary-50 focus:outline-none dark:hover:bg-dark-hover dark:focus:bg-dark-hover"
+								role="option"
+								aria-selected={index === activeSuggestionIndex}
+								on:mousedown|preventDefault
+								on:click={() => selectSpeciesSuggestion(species)}
+							>
+								<span class="min-w-0">
+									<span class="block truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+										{species.Com_Name}
+									</span>
+									<span class="block truncate text-xs italic text-gray-500 dark:text-gray-400">
+										{species.Sci_Name}
+									</span>
+								</span>
+								<span class="mt-0.5 flex-shrink-0 rounded-md bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-200">
+									{species.Count}
+								</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
 			</div>
 
 			<DatePicker

@@ -42,6 +42,7 @@
 
 	export let sciName: string;
 	export let size: 'xs' | 'sm' | 'md' | 'lg' = 'md';
+	export let fill = false;
 
 	let imageData: BirdImage | null = null;
 	let loading = true;
@@ -49,6 +50,9 @@
 	let container: HTMLDivElement | null = null;
 	let observer: IntersectionObserver | undefined;
 	let loadStarted = false;
+	let mounted = false;
+	let loadedKey: string | null = null;
+	let loadVersion = 0;
 
 	const sizeClasses = {
 		xs: 'w-10 h-10',
@@ -57,21 +61,25 @@
 		lg: 'w-48 h-48',
 	};
 
-	async function loadImage() {
+	async function loadImage(key: string) {
 		if (loadStarted) return;
 		loadStarted = true;
+		const version = loadVersion;
 
 		try {
-			imageData = await loadSpeciesImage(sciName);
+			const image = await loadSpeciesImage(key);
+			if (version !== loadVersion) return;
+			imageData = image;
 		} catch (e) {
+			if (version !== loadVersion) return;
 			error = true;
 		} finally {
-			loading = false;
+			if (version === loadVersion) loading = false;
 		}
 	}
 
-	onMount(() => {
-		const key = imageCacheKey(sciName);
+	function startImageLoad() {
+		const key = loadedKey;
 		if (!key) {
 			loading = false;
 			return;
@@ -84,14 +92,14 @@
 		}
 
 		if (!container || typeof IntersectionObserver === 'undefined') {
-			void loadImage();
+			void loadImage(key);
 			return;
 		}
 
 		observer = new IntersectionObserver((entries) => {
 			for (const entry of entries) {
 				if (!entry.isIntersecting) continue;
-				void loadImage();
+				void loadImage(key);
 				observer?.disconnect();
 				observer = undefined;
 				break;
@@ -99,14 +107,36 @@
 		}, { rootMargin: '600px' });
 
 		observer.observe(container);
+	}
+
+	function resetImage(sciName: string) {
+		loadedKey = imageCacheKey(sciName);
+		loadVersion += 1;
+		observer?.disconnect();
+		observer = undefined;
+		imageData = null;
+		error = false;
+		loading = Boolean(loadedKey);
+		loadStarted = false;
+		if (mounted) startImageLoad();
+	}
+
+	$: if (imageCacheKey(sciName) !== loadedKey) {
+		resetImage(sciName);
+	}
+
+	onMount(() => {
+		mounted = true;
+		startImageLoad();
 	});
 
 	onDestroy(() => {
+		loadVersion += 1;
 		observer?.disconnect();
 	});
 </script>
 
-<div bind:this={container} class="{sizeClasses[size]} bg-gray-200 dark:bg-dark-card rounded-lg overflow-hidden">
+<div bind:this={container} class="{fill ? 'h-full w-full' : sizeClasses[size]} bg-gray-200 dark:bg-dark-card rounded-lg overflow-hidden">
 	{#if loading}
 		<div class="w-full h-full flex items-center justify-center">
 			<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>

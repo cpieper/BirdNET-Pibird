@@ -26,6 +26,9 @@ export default {
 					border: '#3d5a48',
 				}
 			},
+			gridTemplateColumns: {
+				24: 'repeat(24, minmax(0, 1fr))',
+			},
 			fontFamily: {
 				sans: ['Inter', 'system-ui', 'sans-serif'],
 			},
