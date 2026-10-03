@@ -6,7 +6,7 @@ import threading
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from ..config import get_settings, Settings
@@ -22,6 +22,7 @@ TEMPORAL_ZOOM_RATES = {
 }
 TEMPORAL_ZOOM_RENDERS_IN_PROGRESS: set[str] = set()
 TEMPORAL_ZOOM_RENDER_LOCK = threading.Lock()
+SPECTROGRAM_PLOT_LOCK = threading.Lock()
 
 
 def extract_species_from_filename(filename: str) -> str:
@@ -48,10 +49,42 @@ def validate_path(base: str, *parts: str) -> Path:
     base_path = Path(base).resolve()
     full_path = (base_path / Path(*parts)).resolve()
 
-    if not str(full_path).startswith(str(base_path)):
+    if not full_path.is_relative_to(base_path):
         raise HTTPException(status_code=403, detail="Access denied")
 
     return full_path
+
+
+def render_spectrogram_plot(source_path: Path) -> Path:
+    """Cache an axes-free plot only when a saved recording inspector is opened."""
+    import subprocess
+
+    output_path = source_path.with_name(f'.{source_path.name}.plot.png')
+
+    def cached() -> bool:
+        return output_path.exists() and output_path.stat().st_mtime >= source_path.stat().st_mtime
+
+    if cached():
+        return output_path
+    # One render at a time per backend worker; do not queue unbounded Pi work.
+    if not SPECTROGRAM_PLOT_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=503, detail="Spectrogram renderer busy", headers={"Retry-After": "2"})
+    tmp_path = output_path.with_name(f'{output_path.name}.{uuid.uuid4().hex}.tmp.png')
+    try:
+        if cached():
+            return output_path
+        subprocess.run(
+            ['sox', '-V1', str(source_path), '-n', 'remix', '1', 'rate', '24k',
+             'spectrogram', '-r', '-x', '1200', '-y', '257', '-z', '80', '-o', str(tmp_path)],
+            check=True, capture_output=True, timeout=15,
+        )
+        tmp_path.replace(output_path)
+        return output_path
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise HTTPException(status_code=503, detail="Interactive spectrogram unavailable") from exc
+    finally:
+        tmp_path.unlink(missing_ok=True)
+        SPECTROGRAM_PLOT_LOCK.release()
 
 
 def media_type_for_path(file_path: Path) -> str:
@@ -372,10 +405,11 @@ async def prepare_temporal_zoom_audio(
 
 
 @router.get("/media/spectrogram/{date}/{species}/{filename}")
-async def get_spectrogram(
+def get_spectrogram(
     date: str,
     species: str,
     filename: str,
+    plot: bool = Query(False),
     settings: Settings = Depends(get_settings),
 ):
     """Serve a spectrogram image.
@@ -385,6 +419,13 @@ async def get_spectrogram(
         species: Scientific name
         filename: Base filename (will append .png if needed)
     """
+    if plot:
+        species_folder = extract_species_from_filename(filename)
+        source_path = validate_path(settings.by_date_dir, date, species_folder, filename)
+        if not source_path.is_file() or source_path.suffix.lower() not in {'.wav', '.mp3', '.ogg', '.flac'}:
+            raise HTTPException(status_code=404, detail="Source audio file not found")
+        return FileResponse(render_spectrogram_plot(source_path), media_type="image/png")
+
     # Normalize species name: spaces to underscores (filesystem uses underscores)
     species = species.replace(' ', '_')
 

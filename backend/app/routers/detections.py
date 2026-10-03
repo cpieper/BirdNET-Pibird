@@ -863,6 +863,7 @@ async def delete_detection(
     base_path = os.path.join(settings.by_date_dir, detection_date, species_folder)
     audio_path = os.path.join(base_path, filename)
     spectrogram_path = audio_path + '.png'
+    interactive_plot_path = os.path.join(base_path, f'.{filename}.plot.png')
 
     # Delete from database (using a new writable connection)
     write_db = sqlite3.connect(settings.db_path)
@@ -874,7 +875,7 @@ async def delete_detection(
 
     # Delete files
     deleted_files = []
-    for path in [audio_path, spectrogram_path]:
+    for path in [audio_path, spectrogram_path, interactive_plot_path]:
         if os.path.exists(path):
             try:
                 os.remove(path)

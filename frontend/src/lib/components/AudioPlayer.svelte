@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { currentlyPlaying } from '$lib/stores';
+	import SpectrogramInspector from './SpectrogramInspector.svelte';
+	import { mapPlaybackTime, type TimeSelection } from '$lib/playbackTimeline';
 
 	export let src: string;
 	export let filename: string = '';
@@ -8,6 +10,8 @@
 	export let temporalZoomProminent: boolean = false;
 	export let temporalZoomUrls: Record<string, string> = {};
 	export let temporalZoomPrepareUrls: Record<string, string> = {};
+	export let spectrogramUrl = '';
+	export let spectrogramPlotUrl = '';
 
 	type PitchPreservingAudio = HTMLAudioElement & {
 		preservesPitch?: boolean;
@@ -29,6 +33,19 @@
 	let isPlaying = false;
 	let currentTime = 0;
 	let duration = 0;
+	let originalDuration = 0;
+	let originalSrc = '';
+	let requestedSrc = '';
+	let pendingOriginalTime = 0;
+	let resumeAfterSwitch = false;
+	let selection: TimeSelection | null = null;
+	let looping = false;
+	let playingPassage = false;
+	let animationFrame = 0;
+	$: originalTime = mapPlaybackTime(currentTime, duration, originalDuration);
+	$: if (!spectrogramUrl) { looping = false; playingPassage = false; }
+	$: if ($currentlyPlaying && $currentlyPlaying !== requestedSrc) resumeAfterSwitch = false;
+	$: if (audio && effectiveSrc !== requestedSrc) switchSource(effectiveSrc);
 	let lowPassHz = 12000;
 	let highPassHz = 500;
 	let gain = 1.85;
@@ -50,7 +67,7 @@
 
 	$: selectedRateKey = String(playbackRate);
 	$: selectedRenderedTemporalZoomUrl = temporalZoomUrls[selectedRateKey];
-	$: canUsePreparedTemporalZoom = !isPlaying || $currentlyPlaying === selectedRenderedTemporalZoomUrl;
+	$: canUsePreparedTemporalZoom = originalDuration > 0;
 	$: renderedTemporalZoomSrc =
 		useRenderedTemporalZoom &&
 		playbackRate !== 1 &&
@@ -83,7 +100,8 @@
 		volumeNode.gain.value = volume;
 	}
 	$: if (audio) {
-		applyPlaybackSettings();
+		audio.volume = useLitePlayback ? volume : 1;
+		audio.playbackRate = isUsingRenderedTemporalZoom ? 1 : playbackRate;
 	}
 
 	onMount(() => {
@@ -93,6 +111,9 @@
 	});
 
 	onDestroy(() => {
+		if (typeof window !== 'undefined') cancelAnimationFrame(animationFrame);
+		if (audio) audio.pause();
+		if ($currentlyPlaying === requestedSrc) currentlyPlaying.set(null);
 		if (sourceNode) sourceNode.disconnect();
 		if (highPassNode) highPassNode.disconnect();
 		if (lowPassNode) lowPassNode.disconnect();
@@ -166,55 +187,125 @@
 		}
 	}
 
+	function switchSource(nextSrc: string) {
+		const sameRecording = originalSrc === src;
+		pendingOriginalTime = sameRecording
+			? duration > 0 ? mapPlaybackTime(audio.currentTime, duration, originalDuration) : pendingOriginalTime : 0;
+		resumeAfterSwitch = sameRecording && (!audio.paused || resumeAfterSwitch);
+		const previousSrc = requestedSrc;
+		audio.pause();
+		if ($currentlyPlaying === previousSrc) currentlyPlaying.set(null);
+		if (!sameRecording) {
+			originalSrc = src;
+			originalDuration = 0;
+			selection = null;
+			looping = false;
+			playingPassage = false;
+			preparedTemporalZoomRates = new Set();
+			attemptedTemporalZoomPrewarmRates = new Set();
+			renderedTemporalZoomFailures = new Set();
+		}
+		requestedSrc = nextSrc;
+		currentTime = 0;
+		duration = 0;
+		audio.src = nextSrc;
+		audio.load();
+	}
+
+	async function startPlayback() {
+		const playbackSrc = requestedSrc;
+		currentlyPlaying.set(playbackSrc);
+		try {
+			await ensureAudioContextRunning();
+			if ($currentlyPlaying !== playbackSrc || requestedSrc !== playbackSrc) return;
+			// A recording inspector shares the original player and its audio graph.
+			for (const otherAudio of document.querySelectorAll('audio')) {
+				if (otherAudio !== audio && !otherAudio.paused) otherAudio.pause();
+			}
+			await audio.play();
+			if ($currentlyPlaying !== playbackSrc && requestedSrc === playbackSrc) audio.pause();
+		} catch (error) {
+			if ($currentlyPlaying === playbackSrc) currentlyPlaying.set(null);
+			if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('Unable to play audio:', error);
+		}
+	}
+
 	async function togglePlay() {
 		if (isPlaying) {
 			audio.pause();
-			currentlyPlaying.set(null);
 		} else {
-			try {
-				await ensureAudioContextRunning();
-
-				// Stop any other playing audio
-				if ($currentlyPlaying && $currentlyPlaying !== effectiveSrc) {
-					const otherAudio = document.querySelector(`audio[src="${$currentlyPlaying}"]`) as HTMLAudioElement;
-					if (otherAudio) otherAudio.pause();
-				}
-
-				await audio.play();
-				currentlyPlaying.set(effectiveSrc);
-			} catch (error) {
-				console.error('Unable to play audio:', error);
+			if (selection && (looping || playingPassage)) {
+				const time = mapPlaybackTime(audio.currentTime, duration, originalDuration);
+				if (time < selection.start || time >= selection.end) seekOriginal(selection.start);
 			}
+			await startPlayback();
 		}
+	}
+
+	function seekOriginal(time: number) {
+		if (!duration || !originalDuration) return;
+		audio.currentTime = mapPlaybackTime(time, originalDuration, duration);
+		currentTime = audio.currentTime;
+	}
+
+	function updateSelection(next: TimeSelection | null) {
+		selection = next;
+		if (!next) { looping = false; playingPassage = false; }
+	}
+
+	async function previewPassage() {
+		if (!selection) return;
+		playingPassage = true;
+		seekOriginal(selection.start);
+		await startPlayback();
 	}
 
 	function handleTimeUpdate() {
 		currentTime = audio.currentTime;
+		const time = mapPlaybackTime(currentTime, duration, originalDuration);
+		if (selection && (looping || playingPassage) && time >= selection.end) {
+			if (looping) seekOriginal(selection.start);
+			else { audio.pause(); seekOriginal(selection.end); playingPassage = false; }
+		}
+	}
+
+	function animatePlayhead() {
+		handleTimeUpdate();
+		if (!audio.paused) animationFrame = requestAnimationFrame(animatePlayhead);
 	}
 
 	function handleLoadedMetadata() {
-		duration = audio.duration;
+		duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+		if (requestedSrc === src) originalDuration = duration;
 		applyPlaybackSettings();
+		seekOriginal(pendingOriginalTime);
+		pendingOriginalTime = 0;
+		if (resumeAfterSwitch) {
+			resumeAfterSwitch = false;
+			// A source that finishes loading late must respect a newer playback choice.
+			if (!$currentlyPlaying || $currentlyPlaying === requestedSrc) void startPlayback();
+		}
 	}
 
 	function handleEnded() {
+		if (selection && looping) { seekOriginal(selection.start); void startPlayback(); return; }
 		isPlaying = false;
-		currentlyPlaying.set(null);
+		playingPassage = false;
+		if ($currentlyPlaying === requestedSrc) currentlyPlaying.set(null);
 	}
 
 	function handlePlay() {
+		if ($currentlyPlaying !== requestedSrc) { audio.pause(); return; }
 		isPlaying = true;
+		currentlyPlaying.set(requestedSrc);
+		cancelAnimationFrame(animationFrame);
+		animationFrame = requestAnimationFrame(animatePlayhead);
 	}
 
 	function handlePause() {
 		isPlaying = false;
-	}
-
-	function seek(e: MouseEvent) {
-		const target = e.currentTarget as HTMLElement;
-		const rect = target.getBoundingClientRect();
-		const percent = (e.clientX - rect.left) / rect.width;
-		audio.currentTime = percent * duration;
+		cancelAnimationFrame(animationFrame);
+		if ($currentlyPlaying === requestedSrc) currentlyPlaying.set(null);
 	}
 
 	function formatTime(seconds: number): string {
@@ -286,7 +377,6 @@
 
 <audio
 	bind:this={audio}
-	src={effectiveSrc}
 	on:timeupdate={handleTimeUpdate}
 	on:loadedmetadata={handleLoadedMetadata}
 	on:ended={handleEnded}
@@ -295,7 +385,16 @@
 	on:error={handleAudioError}
 	preload="metadata"></audio>
 
-{#if compact}
+{#if spectrogramUrl}
+	<SpectrogramInspector imageUrl={spectrogramUrl} plotUrl={spectrogramPlotUrl}
+		duration={originalDuration} currentTime={originalTime} {selection} {looping}
+		on:seek={event => { playingPassage = false; seekOriginal(event.detail); }}
+		on:select={event => updateSelection(event.detail)}
+		on:loop={event => looping = event.detail}
+		on:preview={() => void previewPassage()} />
+{/if}
+
+{#if compact && !spectrogramUrl}
 	<div class="space-y-2">
 		<div class="flex items-center gap-2">
 			<button
@@ -421,17 +520,12 @@
 					<p class="text-sm text-gray-700 dark:text-gray-300 truncate">{filename}</p>
 				{/if}
 				<div class="flex items-center gap-2">
-					<span class="text-xs text-gray-500 dark:text-gray-400 w-10">{formatTime(currentTime)}</span>
-					<button
-						class="flex-1 h-2 bg-gray-300 dark:bg-dark-border rounded-full overflow-hidden cursor-pointer"
-						on:click={seek}
-						aria-label="Seek"
-					>
-						<div
-							class="h-full bg-primary-500 transition-all"
-							style="width: {duration ? (currentTime / duration) * 100 : 0}%"></div>
-					</button>
-					<span class="text-xs text-gray-500 dark:text-gray-400 w-10 text-right">{formatTime(duration)}</span>
+					<span class="text-xs text-gray-500 dark:text-gray-400 w-10">{formatTime(originalTime)}</span>
+					<input type="range" class="min-h-8 min-w-0 flex-1 cursor-pointer accent-primary-500"
+						min={0} max={originalDuration || 0} step="0.01" value={originalTime}
+						disabled={!originalDuration} on:input={event => seekOriginal(Number(event.currentTarget.value))}
+						aria-label="Seek recording" />
+					<span class="text-xs text-gray-500 dark:text-gray-400 w-10 text-right">{formatTime(originalDuration)}</span>
 				</div>
 			</div>
 		</div>

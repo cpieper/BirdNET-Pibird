@@ -7,7 +7,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "test": "node tests/run.mjs"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.0",
@@ -15,6 +16,7 @@
     "@sveltejs/vite-plugin-svelte": "^4.0.4",
     "@types/node": "^20.0.0",
     "autoprefixer": "^10.4.0",
+    "esbuild": "^0.25.12",
     "postcss": "^8.4.0",
     "svelte": "^5.50.0",
     "svelte-check": "^4.3.6",
