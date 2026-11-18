@@ -1,6 +1,8 @@
 import os
 import sqlite3
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from datetime import datetime
 from unittest.mock import patch
 
@@ -81,6 +83,19 @@ class TestAppriseNotifications(unittest.TestCase):
             "sens": "1.25",
             "overlap": "0.0"
         }
+
+    def test_notify_loads_local_apprise_config(self):
+        with TemporaryDirectory() as directory:
+            config = Path(directory) / "apprise.txt"
+            config.write_text("json://127.0.0.1\n")
+            with patch.object(notifications, "APPRISE_CONFIG", str(config)), \
+                 patch.object(notifications, "apobj", None), \
+                 patch.object(notifications.apprise.Apprise, "notify", autospec=True) as send:
+                notifications.notify("Bird detected", "BirdNET")
+                self.assertEqual(len(notifications.apobj), 1)
+                send.assert_called_once_with(
+                    notifications.apobj, body="Bird detected", title="BirdNET"
+                )
 
     @patch('scripts.utils.helpers._load_settings')
     @patch('scripts.utils.notifications.notify')
