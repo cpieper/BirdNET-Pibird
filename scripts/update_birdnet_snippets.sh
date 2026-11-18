@@ -152,10 +152,17 @@ if ! which inotifywait &>/dev/null;then
   apt-get -y install inotify-tools
 fi
 
-apprise_version=$($HOME/BirdNET-Pi/birdnet/bin/python3 -c "import apprise; print(apprise.__version__)")
-[[ $apprise_version != "1.9.5" ]] && sudo_with_user $HOME/BirdNET-Pi/birdnet/bin/pip3 install apprise==1.9.5
-version=$($HOME/BirdNET-Pi/birdnet/bin/python3 -c "import streamlit; print(streamlit.__version__)")
-[[ $version != "1.53.1" ]] && sudo_with_user $HOME/BirdNET-Pi/birdnet/bin/pip3 install streamlit==1.53.1
+# Resolve these together so Streamlit and Pillow can be upgraded in one transaction.
+requirements_file="$my_dir/../requirements.txt"
+apprise_requirement=$(grep -i -x 'apprise==[^[:space:]]*' "$requirements_file") || exit 1
+streamlit_requirement=$(grep -i -x 'streamlit==[^[:space:]]*' "$requirements_file") || exit 1
+pillow_requirement=$(grep -i -x 'pillow>=[^[:space:]]*' "$requirements_file") || exit 1
+if ! sudo_with_user "$HOME/BirdNET-Pi/birdnet/bin/python3" -m pip install \
+    "$apprise_requirement" "$streamlit_requirement" "$pillow_requirement"; then
+  echo "Failed to install BirdNET-Pi notification and image dependencies." >&2
+  exit 1
+fi
+
 version=$($HOME/BirdNET-Pi/birdnet/bin/python3 -c "import seaborn; print(seaborn.__version__)")
 [[ $version != "0.13.2" ]] && sudo_with_user $HOME/BirdNET-Pi/birdnet/bin/pip3 install seaborn==0.13.2
 version=$($HOME/BirdNET-Pi/birdnet/bin/python3 -c "import suntime; print(suntime.__version__)")
