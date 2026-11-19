@@ -7,6 +7,14 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "pip"
     directory: "/backend"
@@ -14,6 +22,14 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "npm"
     directory: "/frontend"
@@ -21,6 +37,14 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -28,3 +52,11 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
