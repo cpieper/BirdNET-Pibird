@@ -116,10 +116,26 @@ Live audio is available from the dashboard in the `Explore more` card.
 Spectrogram cards now behave differently depending on context:
 
 - Dashboard cards stay compact and do not offer an expand affordance
-- Review and species-detail cards show compact spectrogram thumbnails by default and can be expanded in place for detailed inspection
-- Library cards keep a compact thumbnail by default and can expand to a large full-card inspection view
+- Review and species-detail cards show compact spectrogram thumbnails by default and expand in place into a recording inspector
+- Library cards keep a compact thumbnail by default and use the same inspector when expanded
 
 Expanded spectrograms intentionally grow within the normal page flow and push surrounding content down, rather than opening a modal.
+
+The inspector shares the existing audio player. A moving playhead follows playback; tap the plot to seek, or use Left/Right arrows for 0.1-second steps and Home/End for the recording boundaries. `Select Passage` enables dragging a time range. Accessible start/end sliders refine the passage; `Play Passage` plays it once, `Repeat` loops it, and `Clear` restores normal playback. Collapsing the inspector stops passage-repeat behavior.
+
+Interactive plots are generated on demand from the original audio using SoX, resampled to 24 kHz, with a displayed frequency range of 0–12 kHz. The `/api/media/spectrogram/{date}/{species}/{filename}?plot=true` response contains only the plot; the browser renders time and frequency labels separately. This avoids mapping axes, embedded text, or letterboxing to recording time. The plot is cached beside the recording, invalidated when the audio is newer, and rendered through a synchronous worker route with a 15-second timeout and one active render per backend worker. An unavailable plot falls back to the saved PNG with ordinary playback and a Retry option.
+
+This is a playback-linked saved-recording view. The image pixels do not change with audio filters or gain, and it does not provide higher-resolution spectral zoom or a live-stream waterfall.
+
+## Insights Species Focus
+
+- Selecting a species charts its own detection counts by default, using a zero-based scale fitted to the selected counts. Multiple selections use grouped bars.
+- `Show All` adds a stacked `Other` series for station-wide context; `Show Selected` returns to focus. Summary totals and peak periods continue to describe the selected species.
+- Species selections survive date and range-mode changes, including Year view. A selected species absent from the next period remains selected with zero counts.
+- Search accepts common or scientific names and covers every species detected in the current period, including species outside the top ten. The list expands with `Show all` / `Show less`.
+- Station distribution is secondary and collapses while species are selected. Its percentages include all detections, including species outside the displayed leaders.
+- Days with no indexed detections occupy their own calendar positions. A zero count does not establish that recording was active throughout that day.
+- Selecting a species bar opens that species' Review queue for the bucket date; selecting `Other` opens the station's queue for that date. Year bars open Review on the first day of the clicked month, preserving an individual species filter when applicable.
 
 ## Temporal Zoom
 
@@ -132,6 +148,7 @@ Recording players include Temporal Zoom presets for slowing playback while prese
 - Mobile browsers use a lighter native playback path and avoid WebAudio filters during Temporal Zoom
 - Mobile views can prepare cached Temporal Zoom audio in the background when controls are opened; the prepare endpoint queues work and returns quickly so remote access paths such as Cloudflare Tunnel are not blocked on audio rendering
 - Cached Temporal Zoom clips live under the recordings `By_Date/tempo/{rate}x/...` cache tree and are rendered with `sox tempo` when available, falling back to `ffmpeg atempo`
+- Spectrogram playhead and passage coordinates stay in original-recording seconds. Cached slowed audio uses measured duration ratios to map those coordinates; changing sources preserves the passage and playhead. A delayed source load respects a newer playback choice.
 - Reference labels are inspired by visual temporal-resolution research, including critical flicker fusion studies, and are not presented as simulations of another animal's hearing
 - The in-player reference link points to Healy et al. 2013, `Metabolic rate and body size are linked with perception of temporal information`
 - Natural playback remains the default

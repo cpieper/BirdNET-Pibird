@@ -8,6 +8,8 @@ let component: ReturnType<typeof createClassComponent>;
 afterEach(() => { component?.$destroy(); document.body.innerHTML = ''; });
 
 test('visible-tab refresh updates totals and both discovery links to the station date', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
     let date = '2026-09-29';
     let count = 10;
     const detection = { Date: date, Time: '12:00:00', Sci_Name: 'Dryobates pubescens',

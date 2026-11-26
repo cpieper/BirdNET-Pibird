@@ -194,6 +194,9 @@ export const media = {
 	spectrogramUrl: (date: string, species: string, filename: string) =>
 		`${API_BASE}/media/spectrogram/${date}/${encodeURIComponent(species)}/${encodeURIComponent(filename)}`,
 
+	spectrogramPlotUrl: (date: string, species: string, filename: string) =>
+		`${API_BASE}/media/spectrogram/${date}/${encodeURIComponent(species)}/${encodeURIComponent(filename)}?plot=true`,
+
 	chartUrl: (date: string) => `${API_BASE}/media/chart/${date}`,
 
 	dates: () => request<{ dates: string[] }>('/media/dates'),

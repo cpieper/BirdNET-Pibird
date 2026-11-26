@@ -3,6 +3,7 @@
 	import { detections, integrations, type RangeChartData } from '$lib/api';
 	import { DatePicker, ExternalLinks } from '$lib/components';
 	import { toasts } from '$lib/stores';
+	import { buildInsightsView } from '$lib/insights';
 
 	let ChartJS: typeof import('chart.js/auto').default;
 
@@ -23,7 +24,19 @@
 	let mainChart: any = null;
 	let speciesChart: any = null;
 
-	let selectedSpecies: Set<string> = new Set();
+	let selectedSpecies = new Map<string, string>();
+	let showAll = false;
+	let speciesQuery = '';
+	let speciesListExpanded = false;
+	let loadRequest = 0;
+	$: insightView = chartData ? buildInsightsView(chartData, selectedSpecies, showAll, rangeMode === 'year') : null;
+	$: selectableSpecies = chartData ? chartData.species_buckets.map(sp => ({
+		sci_name: sp.sci_name, com_name: sp.com_name,
+		count: sp.counts.reduce((sum, n) => sum + n, 0),
+		max_confidence: chartData?.top_species.find(top => top.sci_name === sp.sci_name)?.max_confidence,
+	})).sort((a, b) => b.count - a.count) : [];
+	$: matchingSpecies = selectableSpecies.filter(sp => `${sp.com_name} ${sp.sci_name}`.toLowerCase().includes(speciesQuery.trim().toLowerCase()));
+	$: visibleSpecies = speciesListExpanded || speciesQuery.trim() ? matchingSpecies : matchingSpecies.slice(0, 10);
 	let isDark = false;
 	let prefersReducedMotion = false;
 
@@ -158,7 +171,6 @@
 
 	function changeMode(mode: RangeMode) {
 		rangeMode = mode;
-		selectedSpecies = new Set();
 		loadChartData();
 	}
 
@@ -182,21 +194,25 @@
 	async function loadChartData() {
 		if (!anchorDate) return;
 		loading = true;
-		selectedSpecies = new Set();
+		const request = ++loadRequest;
 		try {
 			const { start, end } = getRange(anchorDate, rangeMode);
-			chartData = await detections.chartDataRange({
+			const result = await detections.chartDataRange({
 				start,
 				end,
 				group_by: groupByForMode(rangeMode),
 			});
+			if (request !== loadRequest) return;
+			chartData = result;
 		} catch (e) {
+			if (request !== loadRequest) return;
 			console.error('Failed to load chart data:', e);
 			toasts.show('Failed to load chart data', 'error');
 			chartData = null;
 		} finally {
-			loading = false;
+			if (request === loadRequest) loading = false;
 		}
+		if (request !== loadRequest) return;
 		await tick();
 		renderCharts();
 	}
@@ -208,35 +224,43 @@
 		return `${value}-01`;
 	}
 
-	function openReviewFromBucket(bucketIndex: number) {
+	function openReviewFromBucket(bucketIndex: number, sciName: string | null) {
 		if (!chartData) return;
-		const bucket = chartData.buckets[bucketIndex];
-		if (!bucket) return;
+		const period = insightView?.periods[bucketIndex];
+		if (period === undefined) return;
 		const params = new URLSearchParams();
-		params.set('date', reviewDateForBucket(bucket.period));
-		if (selectedSpecies.size === 1) {
-			const sci = Array.from(selectedSpecies)[0];
-			params.set('species', sci);
-		}
+		params.set('date', reviewDateForBucket(period));
+		if (sciName) params.set('species', sciName);
 		window.location.href = `/detections?${params.toString()}`;
 	}
 
 	// ── Species toggle ────────────────────────────────────────────
 
-	function toggleSpecies(sciName: string) {
-		if (rangeMode === 'year') return;
+	function toggleSpecies(sciName: string, comName: string) {
 		if (selectedSpecies.has(sciName)) {
 			selectedSpecies.delete(sciName);
 		} else {
-			selectedSpecies.add(sciName);
+			selectedSpecies.set(sciName, comName);
+			showAll = false;
 		}
-		selectedSpecies = new Set(selectedSpecies);
-		renderCharts();
+		selectedSpecies = new Map(selectedSpecies);
+		void refreshCharts();
 	}
 
 	function clearSelectedSpecies() {
-		selectedSpecies = new Set();
+		selectedSpecies = new Map();
+		showAll = false;
+		void refreshCharts();
+	}
+
+	async function refreshCharts() {
+		await tick();
 		renderCharts();
+	}
+
+	function toggleShowAll() {
+		showAll = !showAll;
+		void refreshCharts();
 	}
 
 	// ── Colors ────────────────────────────────────────────────────
@@ -262,14 +286,10 @@
 	}
 
 	function getSpeciesColor(sciName: string): string {
-		if (!chartData) return SPECIES_COLORS[0];
-		const idx = chartData.top_species.findIndex(s => s.sci_name === sciName);
-		if (idx >= 0) return SPECIES_COLORS[idx % SPECIES_COLORS.length];
 		let hash = 0;
-		for (let i = 0; i < sciName.length; i++) hash = (hash * 31 + sciName.charCodeAt(i)) | 0;
-		return SPECIES_COLORS[Math.abs(hash) % SPECIES_COLORS.length];
+		for (const char of sciName) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+		return SPECIES_COLORS[hash % SPECIES_COLORS.length];
 	}
-
 	// ── Chart labels ──────────────────────────────────────────────
 
 	function getHourLabel(hour: number): string {
@@ -338,10 +358,11 @@
 		};
 	}
 
-	function openReviewForMonth(monthIndex: number) {
+	function openReviewForMonth(monthIndex: number, sciName: string | null) {
 		const params = new URLSearchParams();
 		const year = dateFromStr(anchorDate).getFullYear();
 		params.set('date', `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`);
+		if (sciName) params.set('species', sciName);
 		window.location.href = `/detections?${params.toString()}`;
 	}
 
@@ -356,14 +377,14 @@
 	}
 
 	function renderMainChart(colors: ReturnType<typeof getChartColors>) {
-		if (!chartData || !mainCanvas) return;
+		if (!chartData || !insightView || !mainCanvas) return;
 		if (mainChart) mainChart.destroy();
 
-		let labels: string[] = chartData.buckets.map(b => getBucketLabel(b.period, rangeMode));
-		let totalCounts = chartData.buckets.map(b => b.count);
+		let labels: string[] = insightView.periods.map(p => rangeMode === 'year' ? MONTH_LABELS[Number(String(p).slice(5, 7)) - 1] : getBucketLabel(p, rangeMode));
+		let totalCounts = insightView.focusCounts;
 		let datasets: any[];
 
-		if (rangeMode === 'year') {
+		if (rangeMode === 'year' && selectedSpecies.size === 0) {
 			const breakdown = buildYearWeekBreakdown(chartData.buckets);
 			labels = breakdown.labels;
 			totalCounts = breakdown.totalsByWeek.map((month) => month.reduce((sum, count) => sum + count, 0));
@@ -386,43 +407,18 @@
 				hoverBackgroundColor: colors.barHoverBg,
 			}];
 		} else {
-			// Build species-indexed map from species_buckets
-			const speciesMap = new Map(chartData.species_buckets.map(sb => [sb.sci_name, sb]));
-			datasets = [];
-			const selectedTotals = new Array(chartData.buckets.length).fill(0);
-
-			for (const sciName of selectedSpecies) {
-				const sb = speciesMap.get(sciName);
-				if (!sb) continue;
-				const color = getSpeciesColor(sciName);
-				datasets.push({
-					label: sb.com_name,
-					data: sb.counts,
-					backgroundColor: color + 'cc',
-					borderColor: color,
-					borderWidth: 1,
-					borderRadius: 2,
-				});
-				for (let i = 0; i < sb.counts.length; i++) {
-					selectedTotals[i] += sb.counts[i];
-				}
-			}
-
-			const otherData = totalCounts.map((t, i) => Math.max(0, t - selectedTotals[i]));
-			if (otherData.some(v => v > 0)) {
-				datasets.push({
-					label: 'Other',
-					data: otherData,
-					backgroundColor: colors.otherBg,
-					borderColor: colors.otherBorder,
-					borderWidth: 1,
-					borderRadius: 2,
-				});
-			}
+			datasets = insightView.series.map(series => {
+				const color = series.sciName ? getSpeciesColor(series.sciName) : colors.otherBorder;
+				return {
+					label: series.name, data: series.counts, sciName: series.sciName,
+					backgroundColor: series.sciName ? color + 'cc' : colors.otherBg,
+					borderColor: color, borderWidth: 1, borderRadius: 3,
+				};
+			});
 		}
 
 		const tickSkip = getXTickSkip();
-		const isStacked = rangeMode === 'year' || selectedSpecies.size > 0;
+		const isStacked = selectedSpecies.size > 0 ? showAll : rangeMode === 'year';
 
 		mainChart = new ChartJS(mainCanvas, {
 			type: 'bar',
@@ -475,6 +471,7 @@
 						},
 					},
 					y: {
+						title: { display: true, text: 'Detections', color: colors.textMuted },
 						stacked: isStacked,
 						beginAtZero: true,
 						grid: { color: colors.grid },
@@ -485,13 +482,16 @@
 						},
 					},
 				},
-				onClick: (_event, elements) => {
-					if (!elements || elements.length === 0) return;
+				onClick: (event) => {
+					if (!event.native) return;
+					const clicked = mainChart.getElementsAtEventForMode(event.native, 'nearest', { intersect: true }, false)[0];
+					if (!clicked) return;
+					const sciName = datasets[clicked.datasetIndex].sciName ?? null;
 					if (rangeMode === 'year') {
-						openReviewForMonth(elements[0].index);
+						openReviewForMonth(clicked.index, sciName);
 						return;
 					}
-					openReviewFromBucket(elements[0].index);
+					openReviewFromBucket(clicked.index, sciName);
 				},
 			},
 		});
@@ -502,14 +502,16 @@
 		if (speciesChart) speciesChart.destroy();
 
 		const species = chartData.top_species.slice(0, 8);
+		const remaining = chartData.total_detections - species.reduce((sum, sp) => sum + sp.count, 0);
+		const distribution = [...species.map(sp => ({ name: sp.com_name, count: sp.count })), ...(remaining > 0 ? [{ name: 'Other', count: remaining }] : [])];
 
 		speciesChart = new ChartJS(speciesCanvas, {
 			type: 'doughnut',
 			data: {
-				labels: species.map(s => s.com_name),
+				labels: distribution.map(s => s.name),
 				datasets: [{
-					data: species.map(s => s.count),
-					backgroundColor: colors.doughnutColors.slice(0, species.length),
+					data: distribution.map(s => s.count),
+					backgroundColor: [...species.map(sp => getSpeciesColor(sp.sci_name)), ...(remaining > 0 ? [colors.otherBg] : [])],
 					borderWidth: 0,
 					hoverOffset: 6,
 				}],
@@ -569,20 +571,12 @@
 	// ── Peak stat ─────────────────────────────────────────────────
 
 	function peakLabel(): string {
-		if (!chartData || chartData.buckets.length === 0) return '—';
-		if (rangeMode === 'year') {
-			const breakdown = buildYearWeekBreakdown(chartData.buckets);
-			const monthlyTotals = breakdown.totalsByWeek.map((month) => month.reduce((sum, count) => sum + count, 0));
-			const max = Math.max(...monthlyTotals);
-			if (max === 0) return '—';
-			const peakMonth = monthlyTotals.findIndex((count) => count === max);
-			return MONTH_LABELS[peakMonth] ?? '—';
-		}
-		const max = Math.max(...chartData.buckets.map(b => b.count));
-		const bucket = chartData.buckets.find(b => b.count === max);
-		if (!bucket || max === 0) return '—';
-		if (rangeMode === 'day') return getHourLabel(bucket.period as number);
-		return getBucketLabel(bucket.period, rangeMode);
+		if (!insightView || !insightView.focusCounts.length) return '—';
+		const max = Math.max(...insightView.focusCounts);
+		if (!max) return '—';
+		const index = insightView.focusCounts.indexOf(max);
+		if (rangeMode === 'year') return MONTH_LABELS[index];
+		return getBucketLabel(insightView.periods[index], rangeMode);
 	}
 
 	function peakStatName(): string {
@@ -716,12 +710,12 @@
 			<!-- Summary stats -->
 			<div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-3">
 				<div class="stat-card">
-					<p class="stat-value">{chartData.total_detections}</p>
-					<p class="stat-label">Total Detections</p>
+					<p class="stat-value">{insightView?.focusTotal ?? 0}</p>
+					<p class="stat-label">{selectedSpecies.size ? 'Selected Species Detections' : 'Total Detections'}</p>
 			</div>
 			<div class="stat-card">
-				<p class="stat-value">{chartData.species_count}</p>
-				<p class="stat-label">Species Detected</p>
+				<p class="stat-value">{selectedSpecies.size || chartData.species_count}</p>
+				<p class="stat-label">{selectedSpecies.size ? 'Species in Focus' : 'Species Detected'}</p>
 			</div>
 			<div class="stat-card">
 				<p class="stat-value">{peakLabel()}</p>
@@ -734,20 +728,24 @@
 				<div class="card-header flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<h2 class="font-semibold text-gray-900 dark:text-gray-100">
-							{rangeMode === 'day' ? 'Detections by Hour' :
+							{selectedSpecies.size === 1 ? `${Array.from(selectedSpecies.values())[0]} · ` : ''}{rangeMode === 'day' ? 'Detections by Hour' :
 							 rangeMode === 'week' ? 'Last 7 Days' :
 							 rangeMode === 'month' ? 'Last 30 Days' :
-							 'Monthly Detections (Weekly Breakdown)'}
+							 selectedSpecies.size ? 'Monthly Detections' : 'Monthly Detections (Weekly Breakdown)'}
 						</h2>
 						<p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
 							Select a chart bar to jump straight into the matching review queue.
 						</p>
 						{#if selectedSpecies.size > 0}
 							<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-								Showing {selectedSpecies.size} selected species
+								{showAll ? 'Showing selected species alongside all detections' : 'Showing selected species only'}
 						</p>
 					{/if}
 				</div>
+				<div class="flex flex-wrap items-center gap-2">
+				{#if selectedSpecies.size > 0}
+					<button type="button" class="btn-secondary btn-sm" on:click={toggleShowAll} aria-pressed={showAll}>{showAll ? 'Show Selected' : 'Show All'}</button>
+				{/if}
 				{#if rangeMode === 'day'}
 					<button
 						on:click={exportEbird}
@@ -760,9 +758,10 @@
 						Export to eBird
 					</button>
 				{/if}
+				</div>
 			</div>
 			<div class="card-body">
-				{#if chartData.total_detections > 0}
+				{#if chartData.total_detections > 0 || selectedSpecies.size > 0}
 					<div class="h-72">
 						<canvas bind:this={mainCanvas}></canvas>
 					</div>
@@ -775,30 +774,25 @@
 		</div>
 
 		<!-- Species breakdown -->
-		{#if chartData.top_species.length > 0}
+		{#if selectableSpecies.length > 0 || selectedSpecies.size > 0}
 			<div class="grid md:grid-cols-3 gap-6 mb-6">
-				<!-- Doughnut chart -->
-				<div class="card">
-					<div class="card-header">
-						<h2 class="font-semibold text-gray-900 dark:text-gray-100">
-							Species Distribution
-						</h2>
-					</div>
+				<!-- Station-wide context stays secondary while focusing on a species. -->
+				<details class="card self-start" open={selectedSpecies.size === 0} on:toggle={() => void refreshCharts()}>
+					<summary class="card-header cursor-pointer font-semibold text-gray-900 dark:text-gray-100">Station Distribution</summary>
 					<div class="card-body">
-						<div class="h-56">
-							<canvas bind:this={speciesCanvas}></canvas>
-						</div>
+						<p class="mb-3 text-xs text-gray-500 dark:text-gray-400">All {chartData.total_detections} detections across {chartData.species_count} species</p>
+						<div class="h-56"><canvas bind:this={speciesCanvas}></canvas></div>
 					</div>
-				</div>
+				</details>
 
 				<!-- Top species list -->
 				<div class="card md:col-span-2">
 					<div class="card-header flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
 						<h2 class="font-semibold text-gray-900 dark:text-gray-100">
-							Top Species
+							Select Species
 						</h2>
 						<div class="flex flex-wrap items-center gap-2">
-							{#if selectedSpecies.size > 0 && rangeMode !== 'year'}
+							{#if selectedSpecies.size > 0}
 								<button
 									on:click={clearSelectedSpecies}
 									class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
@@ -807,16 +801,27 @@
 								</button>
 							{/if}
 							<span class="text-xs text-gray-400 dark:text-gray-500">
-								{rangeMode === 'year' ? 'Selection unavailable in Year view' : 'Click to show on chart'}
+								Select species to focus the chart
 							</span>
 						</div>
 					</div>
+					<div class="px-4 py-3 sm:px-6">
+						<label class="block text-xs font-medium text-gray-500 dark:text-gray-400" for="insightsSpeciesSearch">Find a species</label>
+						<input id="insightsSpeciesSearch" type="search" bind:value={speciesQuery} placeholder="Common or scientific name" class="input mt-1 w-full" />
+						{#if selectedSpecies.size > 0}
+							<div class="mt-3 flex flex-wrap gap-2">
+								{#each Array.from(selectedSpecies) as [sciName, comName]}
+									<button type="button" class="btn-secondary btn-sm" on:click={() => toggleSpecies(sciName, comName)} aria-label={`Remove ${comName} from focus`}>{comName} ×</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
 					<div class="divide-y divide-gray-200 dark:divide-dark-border">
-						{#each chartData.top_species as sp, i}
+						{#each visibleSpecies as sp}
 							<div class="flex flex-col gap-0 sm:flex-row sm:items-center">
 								<button
-									on:click={() => toggleSpecies(sp.sci_name)}
-									disabled={rangeMode === 'year'}
+									on:click={() => toggleSpecies(sp.sci_name, sp.com_name)}
+									aria-pressed={selectedSpecies.has(sp.sci_name)}
 									class="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors sm:gap-4 sm:px-6
 										{selectedSpecies.has(sp.sci_name)
 											? 'bg-gray-100 dark:bg-dark-border'
@@ -827,14 +832,14 @@
 									<span
 										class="w-3 h-3 rounded-full flex-shrink-0 transition-all
 											{selectedSpecies.has(sp.sci_name) ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800' : ''}"
-										style="background-color: {SPECIES_COLORS[i % SPECIES_COLORS.length]};
-											{selectedSpecies.has(sp.sci_name) ? `ring-color: ${SPECIES_COLORS[i % SPECIES_COLORS.length]}` : ''}"></span>
+										style="background-color: {getSpeciesColor(sp.sci_name)};
+											{selectedSpecies.has(sp.sci_name) ? `--tw-ring-color: ${getSpeciesColor(sp.sci_name)}` : ''}"></span>
 									<div class="flex-1 min-w-0 text-left">
 										<p class="font-medium text-gray-900 dark:text-gray-100 truncate">{sp.com_name}</p>
 										<p class="text-sm text-gray-500 dark:text-gray-400 italic truncate">{sp.sci_name}</p>
 									</div>
 									<div class="flex flex-shrink-0 items-center gap-3 sm:gap-4">
-										<span class="badge-primary">{(sp.max_confidence * 100).toFixed(0)}%</span>
+										{#if sp.max_confidence !== undefined}<span class="badge-primary" title="Highest detection confidence">{(sp.max_confidence * 100).toFixed(0)}%</span>{/if}
 										<div class="text-right">
 											<span class="text-lg font-semibold text-primary-600 dark:text-primary-400">{sp.count}</span>
 										</div>
@@ -853,8 +858,13 @@
 									</a>
 								</div>
 							</div>
+						{:else}
+							<p class="px-6 py-4 text-sm text-gray-500">No matching species in this period.</p>
 						{/each}
 					</div>
+					{#if !speciesQuery.trim() && matchingSpecies.length > 10}
+						<div class="px-6 py-3"><button type="button" class="btn-secondary btn-sm" on:click={() => speciesListExpanded = !speciesListExpanded}>{speciesListExpanded ? 'Show less' : `Show all ${matchingSpecies.length}`}</button></div>
+					{/if}
 				</div>
 			</div>
 		{/if}
