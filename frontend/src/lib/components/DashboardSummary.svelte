@@ -2,12 +2,13 @@
 	import type { DetectionStats } from '$lib/api';
 
 	export let stats: DetectionStats | null = null;
+	export let date = '';
 
-	const metrics = [
-		{ label: 'Detections today', value: () => stats?.todays_count ?? 0, href: '/history?mode=day' },
-		{ label: 'Species today', value: () => stats?.todays_species_tally ?? 0, href: '/species?date=today' },
-		{ label: 'All-time detections', value: () => stats?.total_count ?? 0, href: '/history' },
-		{ label: 'Station species', value: () => stats?.species_tally ?? 0, href: '/species' },
+	$: metrics = [
+		{ label: 'Detections today', value: stats?.todays_count ?? 0, href: '/history?mode=day' },
+		{ label: 'Species today', value: stats?.todays_species_tally ?? 0, href: '/species?date=today' },
+		{ label: 'All-time detections', value: stats?.total_count ?? 0, href: '/history' },
+		{ label: 'Station species', value: stats?.species_tally ?? 0, href: '/species' },
 	];
 
 	function todayStr(): string {
@@ -15,7 +16,7 @@
 		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 	}
 
-	$: todayHref = `/detections?date=${todayStr()}&new_on_date=true`;
+	$: todayHref = `/detections?date=${date || todayStr()}&new_on_date=true`;
 </script>
 
 <section class="card p-4 sm:p-5">
@@ -26,7 +27,7 @@
 	<div class="grid grid-cols-2 gap-3">
 		{#each metrics as metric}
 			<a href={metric.href} class="rounded-lg border border-gray-200/80 bg-gray-50 p-3 transition-colors hover:border-primary-200 hover:bg-white dark:border-dark-border/80 dark:bg-dark-nav/50 dark:hover:border-primary-900">
-				<p class="text-2xl font-bold leading-tight text-gray-950 dark:text-gray-50">{metric.value()}</p>
+				<p class="text-2xl font-bold leading-tight text-gray-950 dark:text-gray-50">{metric.value}</p>
 				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{metric.label}</p>
 			</a>
 		{/each}

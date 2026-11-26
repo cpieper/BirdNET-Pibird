@@ -15,14 +15,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - '.github/workflows/**'
-      - 'backend/**'
-      - 'frontend/**'
-      - 'newinstaller.sh'
-      - 'requirements.txt'
-      - 'scripts/**'
-      - 'tests/**'
   workflow_dispatch:
 
 permissions:
@@ -50,14 +42,6 @@ jobs:
         uses: pypa/gh-action-pip-audit@v1.1.0
         with:
           inputs: requirements.txt backend/requirements.txt
-          ignore-vulns: |
-            CVE-2026-33682
-            CVE-2026-25990
-            CVE-2026-40192
-            CVE-2026-42308
-            CVE-2026-42309
-            CVE-2026-42310
-            CVE-2026-42311
 
   backend:
     name: Backend
@@ -76,7 +60,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsndfile1
+          sudo apt-get install -y libsndfile1 ffmpeg
 
       - name: Install Python dependencies
         run: |
@@ -114,7 +98,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Test frontend
+      - name: Run frontend tests
         run: npm test
 
       - name: Check frontend

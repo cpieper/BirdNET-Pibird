@@ -243,7 +243,12 @@
 	}
 
 	function seekOriginal(time: number) {
-		if (!duration || !originalDuration) return;
+		if (!originalDuration) return;
+		if (!duration) {
+			// Keep the latest plot/passage seek while a replacement source loads.
+			pendingOriginalTime = Math.max(0, Math.min(originalDuration, time));
+			return;
+		}
 		audio.currentTime = mapPlaybackTime(time, originalDuration, duration);
 		currentTime = audio.currentTime;
 	}

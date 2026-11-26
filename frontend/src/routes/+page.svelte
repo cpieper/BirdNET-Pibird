@@ -4,8 +4,10 @@
 	import { ActivityStrip, DashboardSummary, DetectionCard, DiscoveryNote, ExternalLinks, LiveFieldWindow, Modal, SpeciesImage } from '$lib/components';
 	import { buildActivitySegments, buildDiscoveryPreview, isFirstStationRecord, latestDetection as selectLatestDetection } from '$lib/dashboard';
 	import { auth, setSiteIdentity, siteName, toasts } from '$lib/stores';
+	import { speciesReviewHref } from '$lib/reviewNavigation.js';
 
 	let stats: DetectionStats | null = null;
+	let dashboardDate = '';
 	let topSpeciesToday: SpeciesSummary[] = [];
 	let topSpeciesAllTime: SpeciesSummary[] = [];
 	let topSpeciesMode: 'today' | 'all' = 'today';
@@ -114,7 +116,7 @@
 	let featuredDetection: Detection | null = null;
 
 	$: activitySegments = buildActivitySegments(hourlyData);
-	$: discoveryPreview = buildDiscoveryPreview(newSpeciesTodayDetections);
+	$: discoveryPreview = buildDiscoveryPreview(newSpeciesTodayDetections, 3, dashboardDate);
 	$: hasDiscoveryNote = discoveryPreview.total > 0;
 	$: featuredIsFirstStationRecord = featuredDetection
 		? isFirstStationRecord(featuredDetection.Sci_Name, newSpeciesTodaySet)
@@ -145,6 +147,7 @@
 			featuredDetection = selectLatestDetection(mergedDetections);
 
 			stats = statsData;
+			dashboardDate = detectionsData.date;
 			newSpeciesTodayDetections = newSpeciesData;
 			newSpeciesTodaySet = pinnedSpecies;
 			groupedDetections = sortDetectionGroups(groupLatest(mergedDetections), pinnedSpecies);
@@ -264,7 +267,7 @@
 				showActivityStrip={hasDiscoveryNote}
 			/>
 			<div class="space-y-4 {hasDiscoveryNote ? '' : 'order-3 lg:order-2'}">
-				<DashboardSummary {stats} />
+				<DashboardSummary {stats} date={dashboardDate} />
 				{#if hasDiscoveryNote}
 					<DiscoveryNote discovery={discoveryPreview} />
 				{/if}
@@ -338,7 +341,7 @@
 											<p class="font-medium text-gray-900 dark:text-gray-100 truncate hover:underline">{sp.Com_Name}</p>
 										</a>
 										<a
-											href={topSpeciesMode === 'today' ? `/detections?date=${todayStr()}&species=${encodeURIComponent(sp.Sci_Name)}` : `/detections?species=${encodeURIComponent(sp.Sci_Name)}`}
+											href={speciesReviewHref(sp.Sci_Name, topSpeciesMode === 'today' ? todayStr() : '')}
 											class="flex-shrink-0 rounded-md bg-primary-50 px-2 py-0.5 text-sm font-semibold text-primary-700 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/50"
 											aria-label={`${sp.Count} ${sp.Count === 1 ? 'detection' : 'detections'} for ${sp.Com_Name}`}
 										>

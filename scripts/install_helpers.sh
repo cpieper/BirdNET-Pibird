@@ -1,5 +1,26 @@
 # this should only contain functions and assignments, ie source install.sh should not have side effects.
 
+# Resolve these together so Streamlit and Pillow can be upgraded in one transaction.
+install_runtime_dependencies() {
+  local install_dir="$1"
+  shift
+  local requirements_file="$install_dir/requirements.txt"
+  local apprise_requirement streamlit_requirement pillow_requirement
+
+  if ! apprise_requirement=$(grep -Eix 'apprise==[^[:space:]]+' "$requirements_file") ||
+     ! streamlit_requirement=$(grep -Eix 'streamlit==[^[:space:]]+' "$requirements_file") ||
+     ! pillow_requirement=$(grep -Eix 'pillow>=[^[:space:]]+' "$requirements_file"); then
+    echo "Notification and image requirements are missing from $requirements_file." >&2
+    return 1
+  fi
+
+  if ! "$@" "$install_dir/birdnet/bin/python3" -m pip install \
+      "$apprise_requirement" "$streamlit_requirement" "$pillow_requirement"; then
+    echo "Failed to install BirdNET-Pi notification and image dependencies." >&2
+    return 1
+  fi
+}
+
 get_tf_whl () {
   # TODO: Create a release with TFLite binaries and update URL to https://github.com/cpieper/BirdNET-Pibird/releases/download/v0.1/
   BASE_URL=https://github.com/Nachtzuster/BirdNET-Pi/releases/download/v0.1/

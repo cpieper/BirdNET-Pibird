@@ -1,3 +1,30 @@
+# v1.1.0 — 2026-10-03
+
+## Highlights
+
+- Redesigned the public dashboard around the latest bird detection, with a species image, spectrogram, confidence, and recording links.
+- Added a compact daily activity strip, station totals, and discovery highlights for first-ever station records.
+
+## Improvements
+
+- Added station names and custom images to the header, with clearer navigation and refreshed mobile and dark-mode layouts.
+- Improved date selection and species filtering across Review, Species, Insights, and Library.
+- Added species search suggestions with keyboard navigation, Enter selection, Escape dismissal, and automatic scrolling to the active suggestion.
+
+## Fixes
+
+- Dashboard counters and species images now follow refreshed data; discovery links follow the station date across midnight.
+- Library inventory counts saved recordings rather than deleted files still present in detection history, and links to a date with surviving recordings.
+- All-time species links preserve their full date range when opening Review.
+- Web installation waits for services to become active and handles transient Caddy restart errors.
+
+## Validation
+
+- Added regression coverage for dashboard refresh, date rollover, Review navigation, species search, and Library inventory.
+- Verified frontend tests, type checking, production build, and backend tests.
+
+**Full changelog:** https://github.com/cpieper/BirdNET-Pibird/compare/v1.0.2...v1.1.0
+
 # 0.13
 - Removed secondary and tertiary custom URLs
 - Added new custom-compiled GoTTY binary

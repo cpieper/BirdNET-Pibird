@@ -1,6 +1,6 @@
 // @ts-nocheck
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { mapPlaybackTime, normalizeSelection, pointerTime } from '../src/lib/playbackTimeline.ts';
 
 test('rendered slow playback maps to original recording seconds using measured durations', () => {

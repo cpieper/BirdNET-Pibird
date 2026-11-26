@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
   verify-versions-metadata:
     runs-on: ubuntu-latest

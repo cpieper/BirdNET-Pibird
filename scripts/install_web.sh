@@ -74,6 +74,8 @@ install_backend_deps() {
         return 1
     fi
     
+    source "$BIRDNET_DIR/scripts/install_helpers.sh"
+    install_runtime_dependencies "$BIRDNET_DIR"
     "$BIRDNET_DIR/birdnet/bin/pip" install -q -r "$BIRDNET_DIR/backend/requirements.txt"
     echo_info "Backend dependencies installed"
 }
